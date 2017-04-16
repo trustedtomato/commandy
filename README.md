@@ -2,7 +2,7 @@
 The programmatic solution for command-line interfaces, inspired by commander.js
 
 ## Installation
-*Coming soong*
+```npm install commandy --save```
 
 ## Usage
-Take a look at the ```examples``` folder
+Take a look at the source code (src folder). Usage docs are coming soon.
