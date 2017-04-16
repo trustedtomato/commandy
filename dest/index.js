@@ -1,27 +1,34 @@
+"use strict";
 /*
+Definitions for understanding the code
+
 Program: Can have commands or be used with argvuments
 Command: Holds namespace for other Program
 Argvument: Option & argument
 Option: --option, -o
 Argument: Argvument which is not option; this defines the main usage of the command
+
+Program definer: The persion who uses this library
+Program user: The persion who uses what uses this library
 */
-"use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+/*--- helper functions ---*/
 const deepEqual = (obj1, obj2) => {
     return JSON.stringify(obj1) === JSON.stringify(obj2);
 };
+/*--- for parsing program definer's input */
 var ArgumentTypes;
 (function (ArgumentTypes) {
     ArgumentTypes[ArgumentTypes["required"] = 0] = "required";
     ArgumentTypes[ArgumentTypes["optional"] = 1] = "optional";
 })(ArgumentTypes = exports.ArgumentTypes || (exports.ArgumentTypes = {}));
-exports.requiredArgRegex = /^\<([a-z0-9-_]+)\>$/i;
-exports.optionalArgRegex = /^\[([a-z0-9-_]+)\]$/i;
-exports.parseArgSyntax = (argSyntax) => {
+const requiredArgRegex = /^\<([a-z0-9-_]+)\>$/i;
+const optionalArgRegex = /^\[([a-z0-9-_]+)\]$/i;
+const parseArgSyntax = (argSyntax) => {
     const args = argSyntax.split(/\s+/g).filter(arg => arg !== '');
     return args.map(arg => {
-        const requiredArgMatch = arg.match(exports.requiredArgRegex);
-        const optionalArgMatch = arg.match(exports.optionalArgRegex);
+        const requiredArgMatch = arg.match(requiredArgRegex);
+        const optionalArgMatch = arg.match(optionalArgRegex);
         if (requiredArgMatch)
             return { type: ArgumentTypes.required, name: requiredArgMatch[1] };
         if (optionalArgMatch)
@@ -29,16 +36,14 @@ exports.parseArgSyntax = (argSyntax) => {
         throw new Error('Invalid argument: ' + arg);
     });
 };
-/** The first bracket is the command, the second one is the argument syntax (which is optional) */
-exports.commandRegex = /^([a-z0-9-_]+)(?:\s+(.*))?$/i;
 var OptionAppearanceTypes;
 (function (OptionAppearanceTypes) {
     OptionAppearanceTypes[OptionAppearanceTypes["long"] = 0] = "long";
     OptionAppearanceTypes[OptionAppearanceTypes["short"] = 1] = "short";
 })(OptionAppearanceTypes = exports.OptionAppearanceTypes || (exports.OptionAppearanceTypes = {}));
-exports.optionRegex = /^(?:(?:-([a-z0-9_]))|(?:--([a-z0-9-_]+)))$/i;
-exports.parseOption = ((option) => {
-    const optionMatch = option.match(exports.optionRegex);
+const optionRegex = /^(?:(?:-([a-z0-9_]))|(?:--([a-z0-9-_]+)))$/i;
+const parseOption = ((option) => {
+    const optionMatch = option.match(optionRegex);
     if (!optionMatch) {
         throw new Error('Invalid option: ' + option);
     }
@@ -55,22 +60,23 @@ exports.parseOption = ((option) => {
         };
     }
 });
-exports.parseOptionSyntax = (optionSyntax) => {
+const parseOptionSyntax = (optionSyntax) => {
     const options = optionSyntax.trim().split(/[,\s]+/g);
     try {
-        const argument = exports.parseArgSyntax(options[options.length - 1])[0];
-        const appearances = options.slice(0, -1).map(option => exports.parseOption(option));
+        const argument = parseArgSyntax(options[options.length - 1])[0];
+        const appearances = options.slice(0, -1).map(option => parseOption(option));
         return { argument, appearances };
     }
     catch (err) {
-        const appearances = options.map(option => exports.parseOption(option));
+        const appearances = options.map(option => parseOption(option));
         return { appearances, argument: null };
     }
 };
+/*--- define Option ---*/
 class Option {
     constructor(fullSyntax, descriptionOrCanBeLonely, canBeLonely) {
         this.canBeLonely = false;
-        Object.assign(this, exports.parseOptionSyntax(fullSyntax));
+        Object.assign(this, parseOptionSyntax(fullSyntax));
         if (typeof descriptionOrCanBeLonely === 'string') {
             this.description = descriptionOrCanBeLonely;
         }
@@ -86,6 +92,54 @@ class Option {
     }
 }
 exports.Option = Option;
+exports.createOption = (fullSyntax, descriptionOrCanBeLonely, canBeLonely) => {
+    return new Option(fullSyntax, descriptionOrCanBeLonely, canBeLonely);
+};
+/*--- define error & warning types (which may occur while parsing the program user's input) ---*/
+class ParsingError {
+}
+exports.ParsingError = ParsingError;
+var ParsingErrors;
+(function (ParsingErrors) {
+    class ShortOptionWithValueCannotBeCombined extends ParsingError {
+        constructor(plainCombinedOptions, wrongOption) {
+            super();
+            this.plainCombinedOptions = plainCombinedOptions;
+            this.wrongOption = wrongOption;
+        }
+    }
+    ParsingErrors.ShortOptionWithValueCannotBeCombined = ShortOptionWithValueCannotBeCombined;
+    class MissingArguments extends ParsingError {
+        constructor(requiredArgs, givenArgs) {
+            super();
+            this.requiredArgs = requiredArgs;
+            this.givenArgs = givenArgs;
+        }
+    }
+    ParsingErrors.MissingArguments = MissingArguments;
+    class MissingOptionValue extends ParsingError {
+        constructor(plainOption, option) {
+            super();
+            this.rawOption = plainOption;
+            this.option = option;
+        }
+    }
+    ParsingErrors.MissingOptionValue = MissingOptionValue;
+})(ParsingErrors = exports.ParsingErrors || (exports.ParsingErrors = {}));
+class ParsingWarning {
+}
+exports.ParsingWarning = ParsingWarning;
+var ParsingWarnings;
+(function (ParsingWarnings) {
+    class InvalidOption extends ParsingWarning {
+        constructor(rawOption) {
+            super();
+            this.rawOption = rawOption;
+        }
+    }
+    ParsingWarnings.InvalidOption = InvalidOption;
+})(ParsingWarnings = exports.ParsingWarnings || (exports.ParsingWarnings = {}));
+/*--- define Program ---*/
 class Program {
     constructor(syntax = '') {
         this._description = '';
@@ -98,22 +152,22 @@ class Program {
         return this;
     }
     arguments(syntax) {
-        const _arguments = exports.parseArgSyntax(syntax);
+        const _arguments = parseArgSyntax(syntax);
         this._arguments = _arguments;
-    }
-    option(appearances, descriptionOrCanBeLonely, canBeLonely) {
-        this._options.push(new Option(appearances, descriptionOrCanBeLonely, canBeLonely));
         return this;
     }
-    command(fullSyntax) {
-        const commandMatch = fullSyntax.trim().match(exports.commandRegex);
-        if (!commandMatch) {
-            throw new Error('Invalid command syntax!');
+    option(appearancesOrOption, descriptionOrCanBeLonely, canBeLonely) {
+        if (typeof appearancesOrOption === 'string') {
+            this._options.push(new Option(appearancesOrOption, descriptionOrCanBeLonely, canBeLonely));
         }
-        const commandName = commandMatch[1];
-        const command = new Program(commandMatch[2] || '');
-        this._commands.set(commandName, command);
-        return command;
+        else if (appearancesOrOption instanceof Option) {
+            this._options.push(appearancesOrOption);
+        }
+        return this;
+    }
+    command(cmd, program) {
+        this._commands.set(cmd, program);
+        return this;
     }
     parse(argvs) {
         const firstArgumentIndex = argvs.findIndex(argv => !argv.startsWith('-'));
@@ -126,30 +180,32 @@ class Program {
                 return Object.assign(parsed, { commandChain: (firstArgument + ' ' + parsed.commandChain).trim() });
             }
         }
+        const errors = [];
+        const warnings = [];
         const options = {};
         const args = [];
         let canBeLonely = false;
         for (let i = 0; i < argvs.length; i++) {
             if (argvs[i].startsWith('-')) {
-                let option = argvs[i];
+                let plainOption = argvs[i];
                 let answer;
-                if (option.includes('=')) {
-                    const splittedOption = option.split('=');
-                    option = splittedOption[0];
+                if (plainOption.includes('=')) {
+                    const splittedOption = plainOption.split('=');
+                    plainOption = splittedOption[0];
                     answer = splittedOption.slice(1).join('=');
                 }
-                if (!option.startsWith('--') && option.length > 2) {
-                    option.replace('-', '').split('').map(option => '-' + option).forEach(option => {
-                        const parsedOption = exports.parseOption(option);
+                if (!plainOption.startsWith('--') && plainOption.length > 2) {
+                    plainOption.replace('-', '').split('').map(option => '-' + option).forEach(option => {
+                        const parsedOption = parseOption(option);
                         const _option = this._options.find(_option => _option.appearances.some(appearance => deepEqual(parsedOption, appearance)));
                         if (typeof _option === 'undefined') {
-                            throw new Error('-' + option + ' is not a valid option!');
+                            warnings.push(new ParsingWarnings.InvalidOption(option));
                         }
                         if (_option.canBeLonely) {
                             canBeLonely = true;
                         }
                         if (_option.argument !== null && _option.argument.type === ArgumentTypes.required) {
-                            throw new Error('-' + option + ' should have a value!');
+                            errors.push(new ParsingErrors.ShortOptionWithValueCannotBeCombined(plainOption, _option));
                         }
                         _option.appearances
                             .filter(appearance => appearance.type === OptionAppearanceTypes.long)
@@ -159,10 +215,10 @@ class Program {
                     });
                 }
                 else {
-                    const parsedOption = exports.parseOption(option);
+                    const parsedOption = parseOption(plainOption);
                     const _option = this._options.find(_option => _option.appearances.some(appearance => deepEqual(parsedOption, appearance)));
                     if (typeof _option === 'undefined') {
-                        throw new Error(option + ' is not a valid option!');
+                        warnings.push(new ParsingWarnings.InvalidOption(plainOption));
                     }
                     if (_option.canBeLonely) {
                         canBeLonely = true;
@@ -173,7 +229,7 @@ class Program {
                     else if (typeof answer === 'undefined') {
                         if (_option.argument.type === ArgumentTypes.required) {
                             if (typeof argvs[i + 1] === 'undefined') {
-                                throw new Error(option + ' should have a value!');
+                                errors.push(new ParsingErrors.MissingOptionValue(plainOption, _option));
                             }
                             answer = argvs[i + 1];
                             i++;
@@ -190,16 +246,11 @@ class Program {
                 args.push(argvs[i]);
             }
         }
-        let numberOfRequiredArgs = this._arguments.reduce((n, _arg) => {
-            if (_arg.type === ArgumentTypes.required) {
-                n++;
-            }
-            return n;
-        }, 0);
-        if (!canBeLonely && numberOfRequiredArgs > args.length) {
-            throw new Error('Missing arguments! The amount of them: ' + (numberOfRequiredArgs - args.length));
+        let requiredArgs = this._arguments.filter((_arg) => _arg.type === ArgumentTypes.required);
+        if (!canBeLonely && requiredArgs.length > args.length) {
+            errors.push(new ParsingErrors.MissingArguments(requiredArgs.map(requiredArg => requiredArg.name), args));
         }
-        let numberOfFillableOptionalArgs = args.length - numberOfRequiredArgs;
+        let numberOfFillableOptionalArgs = args.length - requiredArgs.length;
         const argumentObject = {};
         let argI = 0;
         argLoop: for (let arg of this._arguments) {
@@ -219,9 +270,14 @@ class Program {
         return {
             commandChain: '',
             arguments: argumentObject,
-            options: options
+            options: options,
+            program: this,
+            errors,
+            warnings
         };
     }
 }
 exports.Program = Program;
-exports.program = new Program();
+exports.createProgram = (syntax) => {
+    return new Program(syntax);
+};

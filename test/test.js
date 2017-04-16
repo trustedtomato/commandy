@@ -1,5 +1,5 @@
 const assert = require('assert');
-const Program = require('..').Program;
+const {createProgram,ParsingErrors,ParsingWarnings} = require('..');
 
 function doesError(func){
 	assert((function(){
@@ -16,22 +16,13 @@ describe('Error cases',function(){
 	describe('Invalid option syntax should be thrown on',function(){
 		it('multi-letter one dash option (-f, -force)',function(){
 			doesError(() => {
-				const program = new Program();
-				program
+				createProgram()
 					.option('-f, -force');
-			});
-		});
-		it('no option',function(){
-			doesError(() => {
-				const program = new Program();
-				program
-					.option();
 			});
 		});
 		it('fully invalid option (f, --force)',function(){
 			doesError(() => {
-				const program = new Program();
-				program
+				createProgram()
 					.option('f, --force');
 			});
 		});
@@ -39,20 +30,20 @@ describe('Error cases',function(){
 });
 
 describe('Option parsing',function(){
-	const program = new Program();
-
-	program
+	const program = createProgram()
 		.option('-h, --help','show help',true)
 		.option('-V, --version','show version',true);
-	
 	
 	it('should parse one single dash option',function(){
 		assert.deepStrictEqual(
 			program.parse(['-h']),
 			{
+				program,
 				commandChain:'',
 				arguments:{},
-				options: {help: true}
+				options: {help: true},
+				errors: [],
+				warnings: []
 			}
 		);
 	});
@@ -61,9 +52,12 @@ describe('Option parsing',function(){
 		assert.deepStrictEqual(
 			program.parse(['-V','-h']),
 			{
+				program,
 				commandChain:'',
 				arguments:{},
-				options: {help: true,version: true}
+				options: {help: true,version: true},
+				errors: [],
+				warnings: []
 			}
 		);
 	});
@@ -72,9 +66,12 @@ describe('Option parsing',function(){
 		assert.deepStrictEqual(
 			program.parse(['-hV']),
 			{
+				program,
 				commandChain:'',
 				arguments:{},
-				options: {help: true,version: true}
+				options: {help: true,version: true},
+				errors: [],
+				warnings: []
 			}
 		);
 	});
@@ -83,9 +80,12 @@ describe('Option parsing',function(){
 		assert.deepStrictEqual(
 			program.parse(['--help']),
 			{
+				program,
 				commandChain:'',
 				arguments:{},
-				options: {help: true}
+				options: {help: true},
+				errors: [],
+				warnings: []
 			}
 		);
 	});
@@ -94,22 +94,25 @@ describe('Option parsing',function(){
 		assert.deepStrictEqual(
 			program.parse(['--help','--version']),
 			{
+				program,
 				commandChain:'',
 				arguments:{},
-				options: {help: true,version: true}
+				options: {help: true,version: true},
+				errors: [],
+				warnings: []
 			}
 		);
 	});
 
+	/*
 	it('should error on unknown option',function(){
 		doesError(() => {
 			program.parse(['--unknownoption']);
 		});
 	});
+	*/
 
-	const program2 = new Program();
-
-	program2
+	const program2 = createProgram()
 		.option('-a, --apple <apple-type>','type of the apple')
 		.option('-b, --banana <banana-type>','type of the banana');
 
@@ -117,36 +120,51 @@ describe('Option parsing',function(){
 		assert.deepStrictEqual(
 			program2.parse(['-a=red']),
 			{
+				program: program2,
 				commandChain:'',
 				arguments:{},
-				options: {apple:'red'}
+				options: {apple:'red'},
+				errors: [],
+				warnings: []
 			}
 		);
 	});
 
-	it('should error on multiple one dash option where one of them needs an argument',function(){
-		doesError(() => {
-			program2.parse(['-ab','red']);
-		});
+	it('should send two "ParsingErrors.ShortOptionWithValueCannotBeCombined" erorrs on two one dash options are together & both of them needs a value',function(){
+		assert(program2.parse(['-ab','red']).errors.length,2);
+		assert(program2.parse(['-ab','red']).errors.every(error => {
+			return error instanceof ParsingErrors.ShortOptionWithValueCannotBeCombined;
+		}));
+	});
+
+	it('should send "ParsingErrors.MissingOptionValue" erorr when the option needs value but there is no value',function(){
+		assert(program2.parse(['--apple']).errors.length,1);
+		assert(program2.parse(['--apple']).errors[0] instanceof ParsingErrors.MissingOptionValue);
 	});
 });
 
 describe('Command parsing',() => {
-	const program = new Program();
 	
-	program
-		.command('command-lvl-1')
+	const subSubProgram = createProgram('[comm]')
+		.option('-h, --help');
+
+	const subProgram = createProgram()
 		.option('-h, --help')
-			.command('command-lvl-2 [comm]')
-			.option('-h, --help');
+		.command('command-lvl-2',subSubProgram);
+
+	const program = createProgram()
+		.command('command-lvl-1',subProgram);
 	
 	it('should parse multi-level command',function(){
 		assert.deepStrictEqual(
 			program.parse(['command-lvl-1','command-lvl-2','cheese']),
 			{
+				program: subSubProgram,
 				commandChain:'command-lvl-1 command-lvl-2',
 				arguments:{comm: 'cheese'},
-				options: {}
+				options: {},
+				errors: [],
+				warnings: []
 			}
 		);
 	});
@@ -155,32 +173,38 @@ describe('Command parsing',() => {
 		assert.deepStrictEqual(
 			program.parse(['command-lvl-1','--help','command-lvl-2']),
 			{
+				program: subSubProgram,
 				commandChain:'command-lvl-1 command-lvl-2',
 				arguments:{},
-				options: {help: true}
+				options: {help: true},
+				errors: [],
+				warnings: []
 			}
 		);
 	});
 });
 
 describe('Argument precedence',function(){
-	const program = new Program();
-
-	program
-		.command('test <opt1> [opt2] <opt3>')
+	const testProgram = createProgram('<opt1> [opt2] <opt3>')
 		.option('-h, --help',true)
 		.option('-V, --version',true);
+
+	const program = createProgram()
+		.command('test',testProgram)
 
 	it('should have the required arguments first',function(){
 		assert.deepStrictEqual(
 			program.parse(['test','a','b']),
 			{
+				program: testProgram,
 				commandChain: 'test',
 				arguments:{
 					opt1: 'a',
 					opt3: 'b'
 				},
-				options: {}
+				options: {},
+				errors: [],
+				warnings: []
 			}
 		);
 	});
@@ -189,13 +213,16 @@ describe('Argument precedence',function(){
 		assert.deepStrictEqual(
 			program.parse(['test','a','b','c']),
 			{
+				program: testProgram,
 				commandChain: 'test',
 				arguments:{
 					opt1: 'a',
 					opt2: 'b',
 					opt3: 'c'
 				},
-				options: {}
+				options: {},
+				errors: [],
+				warnings: []
 			}
 		);
 	});
@@ -204,9 +231,12 @@ describe('Argument precedence',function(){
 		assert.deepStrictEqual(
 			program.parse(['test','--help']),
 			{
+				program: testProgram,
 				commandChain: 'test',
 				arguments: {},
-				options: {help: true}
+				options: {help: true},
+				errors: [],
+				warnings: []
 			}
 		);
 	});
@@ -215,16 +245,20 @@ describe('Argument precedence',function(){
 		assert.deepStrictEqual(
 			program.parse(['test','-hV']),
 			{
+				program: testProgram,
 				commandChain: 'test',
 				arguments: {},
-				options: {help: true, version: true}
+				options: {help: true, version: true},
+				errors: [],
+				warnings: []
 			}
 		);
 	});
 
-	it('should error when there is no lazy option and the aruments are not enough',function(){
-		doesError(() => {
-			program.parse(['test','a']);
-		});
+	it('should send an error when there is no lazy option and the aruments are not enough',function(){
+		assert(
+			program.parse(['test','a']).errors.length===1 &&
+			program.parse(['test','a']).errors[0] instanceof ParsingErrors.MissingArguments
+		)
 	});
 });

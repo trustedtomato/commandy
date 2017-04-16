@@ -6,11 +6,6 @@ export interface Argument {
     type: ArgumentTypes;
     name: string;
 }
-export declare const requiredArgRegex: RegExp;
-export declare const optionalArgRegex: RegExp;
-export declare const parseArgSyntax: (argSyntax: string) => Argument[];
-/** The first bracket is the command, the second one is the argument syntax (which is optional) */
-export declare const commandRegex: RegExp;
 export declare enum OptionAppearanceTypes {
     long = 0,
     short = 1,
@@ -23,12 +18,6 @@ export interface BasicOption {
     appearances: OptionAppearance[];
     argument: Argument | null;
 }
-export declare const optionRegex: RegExp;
-export declare const parseOption: (option: string) => {
-    type: OptionAppearanceTypes;
-    text: string;
-};
-export declare const parseOptionSyntax: (optionSyntax: string) => BasicOption;
 export declare class Option {
     appearances: OptionAppearance[];
     argument: Argument | null;
@@ -36,25 +25,56 @@ export declare class Option {
     canBeLonely: boolean;
     constructor(fullSyntax: string, descriptionOrCanBeLonely?: string | boolean, canBeLonely?: boolean);
 }
+export declare const createOption: (fullSyntax: string, descriptionOrCanBeLonely?: string | boolean, canBeLonely?: boolean) => Option;
+export declare class ParsingError {
+}
+export declare namespace ParsingErrors {
+    class ShortOptionWithValueCannotBeCombined extends ParsingError {
+        plainCombinedOptions: string;
+        wrongOption: Option;
+        constructor(plainCombinedOptions: string, wrongOption: Option);
+    }
+    class MissingArguments extends ParsingError {
+        readonly requiredArgs: string[];
+        readonly givenArgs: string[];
+        constructor(requiredArgs: string[], givenArgs: string[]);
+    }
+    class MissingOptionValue extends ParsingError {
+        readonly rawOption: string;
+        readonly option: Option;
+        constructor(plainOption: string, option: Option);
+    }
+}
+export declare class ParsingWarning {
+}
+export declare namespace ParsingWarnings {
+    class InvalidOption extends ParsingWarning {
+        readonly rawOption: string;
+        constructor(rawOption: string);
+    }
+}
 export interface Result {
     commandChain: string;
+    program: Program;
     options: {
         [option: string]: string | boolean;
     };
     arguments: {
         [property: string]: string;
     };
+    errors: ParsingError[];
+    warnings: ParsingWarning[];
 }
 export declare class Program {
-    _arguments: Argument[];
-    _description: string;
-    _commands: Map<string, Program>;
-    _options: Option[];
+    private _arguments;
+    private _description;
+    private _commands;
+    private _options;
     description(description: string): this;
-    arguments(syntax: string): void;
-    option(appearances: string, descriptionOrCanBeLonely?: string, canBeLonely?: boolean): this;
-    command(fullSyntax: string): Program;
+    arguments(syntax: string): this;
+    option(appearancesOrOption: string | Option, descriptionOrCanBeLonely?: string, canBeLonely?: boolean): this;
+    command(cmd: string, program: Program): this;
     parse(argvs: string[]): Result;
     constructor(syntax?: string);
 }
-export declare const program: Program;
+export declare const createProgram: (syntax?: string) => Program;

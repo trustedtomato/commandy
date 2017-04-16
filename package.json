@@ -10,6 +10,7 @@
   "scripts": {
     "test": "mocha",
     "watch": "tsc -w",
+    "watch-examples": "tsc -p examples/tsconfig.json -w",
     "preversion": "npm test",
     "version": "tsc && git add .",
     "postversion": "git push"
