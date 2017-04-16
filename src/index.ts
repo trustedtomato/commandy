@@ -264,6 +264,7 @@ export class Program{
 					);
 					if(typeof _option === 'undefined'){
 						warnings.push(new ParsingWarnings.InvalidOption(plainOption));
+						continue argvLoop;
 					}
 					if(_option.canBeLonely){
 						canBeLonely = true;
