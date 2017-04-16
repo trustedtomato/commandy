@@ -1,0 +1,20 @@
+{
+  "name": "commandy",
+  "version": "1.0.0",
+  "description": "The programmatic solution for command-line interfaces, inspired by commander.js",
+  "main": "dest/index.js",
+  "repository": "git@github.com:trustedtomato/commandy.git",
+  "author": "Halasi Tamás <trusted.tomato@gmail.com>",
+  "license": "MIT",
+  "scripts": {
+    "test": "mocha",
+    "watch": "tsc -w",
+    "preversion": "npm test",
+    "version": "tsc && git add .",
+    "postversion": "git push"
+  },
+  "devDependencies": {
+    "mocha": "^3.2.0",
+    "typescript": "^2.2.2"
+  }
+}
