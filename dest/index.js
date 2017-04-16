@@ -185,7 +185,7 @@ class Program {
         const options = {};
         const args = [];
         let canBeLonely = false;
-        for (let i = 0; i < argvs.length; i++) {
+        argvLoop: for (let i = 0; i < argvs.length; i++) {
             if (argvs[i].startsWith('-')) {
                 let plainOption = argvs[i];
                 let answer;
@@ -195,11 +195,13 @@ class Program {
                     answer = splittedOption.slice(1).join('=');
                 }
                 if (!plainOption.startsWith('--') && plainOption.length > 2) {
-                    plainOption.replace('-', '').split('').map(option => '-' + option).forEach(option => {
+                    const aoptions = plainOption.replace('-', '').split('').map(option => '-' + option);
+                    for (let option of aoptions) {
                         const parsedOption = parseOption(option);
                         const _option = this._options.find(_option => _option.appearances.some(appearance => deepEqual(parsedOption, appearance)));
                         if (typeof _option === 'undefined') {
                             warnings.push(new ParsingWarnings.InvalidOption(option));
+                            continue argvLoop;
                         }
                         if (_option.canBeLonely) {
                             canBeLonely = true;
@@ -212,7 +214,8 @@ class Program {
                             .forEach(appearance => {
                             options[appearance.text] = true;
                         });
-                    });
+                    }
+                    ;
                 }
                 else {
                     const parsedOption = parseOption(plainOption);
