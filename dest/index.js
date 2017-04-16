@@ -222,6 +222,7 @@ class Program {
                     const _option = this._options.find(_option => _option.appearances.some(appearance => deepEqual(parsedOption, appearance)));
                     if (typeof _option === 'undefined') {
                         warnings.push(new ParsingWarnings.InvalidOption(plainOption));
+                        continue argvLoop;
                     }
                     if (_option.canBeLonely) {
                         canBeLonely = true;
