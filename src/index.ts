@@ -21,10 +21,7 @@ const deepEqual = (obj1:{[key: string]:any},obj2:{[key: string]:any}):boolean =>
 
 
 /*--- for parsing program definer's input */
-export enum ArgumentTypes{
-	required,
-	optional
-}
+export type ArgumentTypes = 'required' | 'optional';
 export interface Argument{
 	type:ArgumentTypes
 	name:string
@@ -34,11 +31,11 @@ const requiredArgRegex = /^\<([a-z0-9-_]+)\>$/i;
 const optionalArgRegex = /^\[([a-z0-9-_]+)\]$/i;
 const parseArgSyntax = (argSyntax:string):Argument[] => {
 	const args = argSyntax.split(/\s+/g).filter(arg => arg!=='');
-	return args.map(arg => {
+	return args.map((arg):Argument => {
 		const requiredArgMatch = arg.match(requiredArgRegex);
 		const optionalArgMatch = arg.match(optionalArgRegex);
-		if(requiredArgMatch) return{ type: ArgumentTypes.required, name: requiredArgMatch[1] };
-		if(optionalArgMatch) return{ type: ArgumentTypes.optional, name: optionalArgMatch[1] };
+		if(requiredArgMatch) return{ type: 'required', name: requiredArgMatch[1] };
+		if(optionalArgMatch) return{ type: 'optional', name: optionalArgMatch[1] };
 		throw new Error('Invalid argument: '+arg);
 	});
 };
@@ -246,7 +243,7 @@ export class Program{
 						if(_option.canBeLonely){
 							canBeLonely = true;
 						}
-						if(_option.argument!==null && _option.argument.type===ArgumentTypes.required){
+						if(_option.argument!==null && _option.argument.type==='required'){
 							errors.push(new ParsingErrors.ShortOptionWithValueCannotBeCombined(plainOption,_option));
 						}
 						_option.appearances
@@ -272,7 +269,7 @@ export class Program{
 					if(_option.argument===null){
 						answer = true;
 					}else if(typeof answer === 'undefined'){
-						if(_option.argument.type===ArgumentTypes.required){
+						if(_option.argument.type==='required'){
 							if(typeof argvs[i+1] === 'undefined'){
 								errors.push(new ParsingErrors.MissingOptionValue(plainOption,_option));
 							}
@@ -290,7 +287,7 @@ export class Program{
 				args.push(argvs[i]);
 			}
 		}
-		let requiredArgs = this._arguments.filter((_arg) => _arg.type===ArgumentTypes.required);
+		let requiredArgs = this._arguments.filter((_arg) => _arg.type==='required');
 		if(!canBeLonely && requiredArgs.length > args.length){
 			errors.push(new ParsingErrors.MissingArguments(requiredArgs.map(requiredArg => requiredArg.name),args));
 		}
@@ -299,7 +296,7 @@ export class Program{
 		let argI = 0;
 		argLoop: for(let arg of this._arguments){
 			if(typeof args[argI] === 'undefined') break argLoop;
-			if(arg.type===ArgumentTypes.optional){
+			if(arg.type==='optional'){
 				if(numberOfFillableOptionalArgs<=0){
 					continue;
 				}else{
