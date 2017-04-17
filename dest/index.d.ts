@@ -13,10 +13,10 @@ export interface BasicOption {
     argument: Argument | null;
 }
 export declare class Option {
-    _appearances: OptionAppearance[];
-    _argument: Argument | null;
-    _description?: string;
-    _canBeLonely: boolean;
+    appearances: OptionAppearance[];
+    argument: Argument | null;
+    description?: string;
+    canBeLonely: boolean;
     constructor(fullSyntax: string, descriptionOrCanBeLonely?: string | boolean, canBeLonely?: boolean);
 }
 export declare const createOption: (fullSyntax: string, descriptionOrCanBeLonely?: string | boolean, canBeLonely?: boolean) => Option;

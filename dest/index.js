@@ -64,10 +64,10 @@ const parseOptionSyntax = (optionSyntax) => {
 /*--- define Option ---*/
 class Option {
     constructor(fullSyntax, descriptionOrCanBeLonely, canBeLonely) {
-        this._canBeLonely = false;
+        this.canBeLonely = false;
         Object.assign(this, parseOptionSyntax(fullSyntax));
         if (typeof descriptionOrCanBeLonely === 'string') {
-            this._description = descriptionOrCanBeLonely;
+            this.description = descriptionOrCanBeLonely;
         }
         else {
             if (typeof canBeLonely !== 'undefined') {
@@ -76,7 +76,7 @@ class Option {
             canBeLonely = descriptionOrCanBeLonely;
         }
         if (typeof canBeLonely === 'boolean') {
-            this._canBeLonely = canBeLonely;
+            this.canBeLonely = canBeLonely;
         }
     }
 }
@@ -195,18 +195,18 @@ class Program {
                     const multipleRawOptions = rawOption.replace('-', '').split('').map(option => '-' + option);
                     for (let singleRawOption of multipleRawOptions) {
                         const appearance = parseOption(singleRawOption);
-                        const _option = this._options.find(_option => _option._appearances.some(_appearance => deepEqual(_appearance, appearance)));
+                        const _option = this._options.find(_option => _option.appearances.some(_appearance => deepEqual(_appearance, appearance)));
                         if (typeof _option === 'undefined') {
                             warnings.push(new ParsingWarnings.InvalidOption(singleRawOption));
                             continue argvLoop;
                         }
-                        if (_option._canBeLonely) {
+                        if (_option.canBeLonely) {
                             canBeLonely = true;
                         }
-                        if (_option._argument !== null && _option._argument.type === 'required') {
+                        if (_option.argument !== null && _option.argument.type === 'required') {
                             errors.push(new ParsingErrors.ShortOptionWithValueCannotBeCombined(rawOption, _option));
                         }
-                        _option._appearances
+                        _option.appearances
                             .filter(_appearance => _appearance.type === 'long')
                             .forEach(_appearance => {
                             options[_appearance.text] = true;
@@ -216,19 +216,19 @@ class Program {
                 }
                 else {
                     const appearance = parseOption(rawOption);
-                    const _option = this._options.find(_option => _option._appearances.some(_appearance => deepEqual(_appearance, appearance)));
+                    const _option = this._options.find(_option => _option.appearances.some(_appearance => deepEqual(_appearance, appearance)));
                     if (typeof _option === 'undefined') {
                         warnings.push(new ParsingWarnings.InvalidOption(rawOption));
                         continue argvLoop;
                     }
-                    if (_option._canBeLonely) {
+                    if (_option.canBeLonely) {
                         canBeLonely = true;
                     }
-                    if (_option._argument === null) {
+                    if (_option.argument === null) {
                         optionValue = true;
                     }
                     else if (typeof optionValue === 'undefined') {
-                        if (_option._argument.type === 'required') {
+                        if (_option.argument.type === 'required') {
                             if (typeof argvs[i + 1] === 'undefined') {
                                 errors.push(new ParsingErrors.MissingOptionValue(rawOption, _option));
                             }
@@ -236,7 +236,7 @@ class Program {
                             i++;
                         }
                     }
-                    _option._appearances
+                    _option.appearances
                         .filter(_appearance => _appearance.type === 'long')
                         .forEach(_appearance => {
                         options[_appearance.text] = optionValue;

@@ -84,14 +84,14 @@ const parseOptionSyntax = (optionSyntax:string):BasicOption => {
 
 /*--- define Option ---*/
 export class Option{
-	_appearances:OptionAppearance[]
-	_argument:Argument|null
-	_description?:string
-	_canBeLonely:boolean = false
+	appearances:OptionAppearance[]
+	argument:Argument|null
+	description?:string
+	canBeLonely:boolean = false
 	constructor(fullSyntax:string,descriptionOrCanBeLonely?:string|boolean,canBeLonely?:boolean){
 		Object.assign(this,parseOptionSyntax(fullSyntax));
 		if(typeof descriptionOrCanBeLonely === 'string'){
-			this._description = descriptionOrCanBeLonely;
+			this.description = descriptionOrCanBeLonely;
 		}else{
 			if(typeof canBeLonely !== 'undefined'){
 				throw new Error('Cannot define two options!');
@@ -99,7 +99,7 @@ export class Option{
 			canBeLonely = descriptionOrCanBeLonely;
 		}
 		if(typeof canBeLonely === 'boolean'){
-			this._canBeLonely = canBeLonely;
+			this.canBeLonely = canBeLonely;
 		}
 	}
 }
@@ -242,7 +242,7 @@ export class Program{
 					for(let singleRawOption of multipleRawOptions){
 						const appearance = parseOption(singleRawOption);
 						const _option = this._options.find(_option => 
-							_option._appearances.some(_appearance =>
+							_option.appearances.some(_appearance =>
 								deepEqual(_appearance,appearance)
 							)
 						);
@@ -250,13 +250,13 @@ export class Program{
 							warnings.push(new ParsingWarnings.InvalidOption(singleRawOption));
 							continue argvLoop;
 						}
-						if(_option._canBeLonely){
+						if(_option.canBeLonely){
 							canBeLonely = true;
 						}
-						if(_option._argument!==null && _option._argument.type==='required'){
+						if(_option.argument!==null && _option.argument.type==='required'){
 							errors.push(new ParsingErrors.ShortOptionWithValueCannotBeCombined(rawOption,_option));
 						}
-						_option._appearances
+						_option.appearances
 							.filter(_appearance => _appearance.type==='long')
 							.forEach(_appearance => {
 								options[_appearance.text] = true;
@@ -265,7 +265,7 @@ export class Program{
 				}else{
 					const appearance = parseOption(rawOption);
 					const _option = this._options.find(_option => 
-						_option._appearances.some(_appearance =>
+						_option.appearances.some(_appearance =>
 							deepEqual(_appearance,appearance)
 						)
 					);
@@ -273,13 +273,13 @@ export class Program{
 						warnings.push(new ParsingWarnings.InvalidOption(rawOption));
 						continue argvLoop;
 					}
-					if(_option._canBeLonely){
+					if(_option.canBeLonely){
 						canBeLonely = true;
 					}
-					if(_option._argument===null){
+					if(_option.argument===null){
 						optionValue = true;
 					}else if(typeof optionValue === 'undefined'){
-						if(_option._argument.type==='required'){
+						if(_option.argument.type==='required'){
 							if(typeof argvs[i+1] === 'undefined'){
 								errors.push(new ParsingErrors.MissingOptionValue(rawOption,_option));
 							}
@@ -287,7 +287,7 @@ export class Program{
 							i++;
 						}
 					}
-					_option._appearances
+					_option.appearances
 						.filter(_appearance => _appearance.type==='long')
 						.forEach(_appearance => {
 							options[_appearance.text] = optionValue;
