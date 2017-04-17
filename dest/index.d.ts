@@ -1,7 +1,4 @@
-export declare enum ArgumentTypes {
-    required = 0,
-    optional = 1,
-}
+export declare type ArgumentTypes = 'required' | 'optional';
 export interface Argument {
     type: ArgumentTypes;
     name: string;

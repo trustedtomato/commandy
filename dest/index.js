@@ -16,23 +16,17 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const deepEqual = (obj1, obj2) => {
     return JSON.stringify(obj1) === JSON.stringify(obj2);
 };
-/*--- for parsing program definer's input */
-var ArgumentTypes;
-(function (ArgumentTypes) {
-    ArgumentTypes[ArgumentTypes["required"] = 0] = "required";
-    ArgumentTypes[ArgumentTypes["optional"] = 1] = "optional";
-})(ArgumentTypes = exports.ArgumentTypes || (exports.ArgumentTypes = {}));
 const requiredArgRegex = /^\<([a-z0-9-_]+)\>$/i;
 const optionalArgRegex = /^\[([a-z0-9-_]+)\]$/i;
 const parseArgSyntax = (argSyntax) => {
     const args = argSyntax.split(/\s+/g).filter(arg => arg !== '');
-    return args.map(arg => {
+    return args.map((arg) => {
         const requiredArgMatch = arg.match(requiredArgRegex);
         const optionalArgMatch = arg.match(optionalArgRegex);
         if (requiredArgMatch)
-            return { type: ArgumentTypes.required, name: requiredArgMatch[1] };
+            return { type: 'required', name: requiredArgMatch[1] };
         if (optionalArgMatch)
-            return { type: ArgumentTypes.optional, name: optionalArgMatch[1] };
+            return { type: 'optional', name: optionalArgMatch[1] };
         throw new Error('Invalid argument: ' + arg);
     });
 };
@@ -206,7 +200,7 @@ class Program {
                         if (_option.canBeLonely) {
                             canBeLonely = true;
                         }
-                        if (_option.argument !== null && _option.argument.type === ArgumentTypes.required) {
+                        if (_option.argument !== null && _option.argument.type === 'required') {
                             errors.push(new ParsingErrors.ShortOptionWithValueCannotBeCombined(plainOption, _option));
                         }
                         _option.appearances
@@ -231,7 +225,7 @@ class Program {
                         answer = true;
                     }
                     else if (typeof answer === 'undefined') {
-                        if (_option.argument.type === ArgumentTypes.required) {
+                        if (_option.argument.type === 'required') {
                             if (typeof argvs[i + 1] === 'undefined') {
                                 errors.push(new ParsingErrors.MissingOptionValue(plainOption, _option));
                             }
@@ -250,7 +244,7 @@ class Program {
                 args.push(argvs[i]);
             }
         }
-        let requiredArgs = this._arguments.filter((_arg) => _arg.type === ArgumentTypes.required);
+        let requiredArgs = this._arguments.filter((_arg) => _arg.type === 'required');
         if (!canBeLonely && requiredArgs.length > args.length) {
             errors.push(new ParsingErrors.MissingArguments(requiredArgs.map(requiredArg => requiredArg.name), args));
         }
@@ -260,7 +254,7 @@ class Program {
         argLoop: for (let arg of this._arguments) {
             if (typeof args[argI] === 'undefined')
                 break argLoop;
-            if (arg.type === ArgumentTypes.optional) {
+            if (arg.type === 'optional') {
                 if (numberOfFillableOptionalArgs <= 0) {
                     continue;
                 }
