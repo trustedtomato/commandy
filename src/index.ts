@@ -84,14 +84,14 @@ const parseOptionSyntax = (optionSyntax:string):BasicOption => {
 
 /*--- define Option ---*/
 export class Option{
-	appearances:OptionAppearance[]
-	argument:Argument|null
-	description?:string
-	canBeLonely:boolean = false
+	_appearances:OptionAppearance[]
+	_argument:Argument|null
+	_description?:string
+	_canBeLonely:boolean = false
 	constructor(fullSyntax:string,descriptionOrCanBeLonely?:string|boolean,canBeLonely?:boolean){
 		Object.assign(this,parseOptionSyntax(fullSyntax));
 		if(typeof descriptionOrCanBeLonely === 'string'){
-			this.description = descriptionOrCanBeLonely;
+			this._description = descriptionOrCanBeLonely;
 		}else{
 			if(typeof canBeLonely !== 'undefined'){
 				throw new Error('Cannot define two options!');
@@ -99,7 +99,7 @@ export class Option{
 			canBeLonely = descriptionOrCanBeLonely;
 		}
 		if(typeof canBeLonely === 'boolean'){
-			this.canBeLonely = canBeLonely;
+			this._canBeLonely = canBeLonely;
 		}
 	}
 }
@@ -224,69 +224,73 @@ export class Program{
 		const options:{[option: string]:string|boolean} = {};
 		const args:string[] = [];
 		let canBeLonely = false;
+
 		argvLoop: for(let i = 0; i < argvs.length; i++){
 			if(argvs[i].startsWith('-')){
-				let plainOption = argvs[i];
-				let answer:string|boolean;
-				if(plainOption.includes('=')){
-					const splittedOption = plainOption.split('=');
-					plainOption = splittedOption[0];
-					answer = splittedOption.slice(1).join('=');
+	
+				let rawOption = argvs[i];
+				let optionValue:string|boolean;
+
+				if(rawOption.includes('=')){
+					const splittedOption = rawOption.split('=');
+					rawOption = splittedOption[0];
+					optionValue = splittedOption.slice(1).join('=');
 				}
-				if(!plainOption.startsWith('--') && plainOption.length>2){
-					const aoptions = plainOption.replace('-','').split('').map(option => '-'+option);
-					for(let option of aoptions){
-						const parsedOption = parseOption(option);
+
+				if(!rawOption.startsWith('--') && rawOption.length>2){
+					const multipleRawOptions = rawOption.replace('-','').split('').map(option => '-'+option);
+					for(let singleRawOption of multipleRawOptions){
+						const appearance = parseOption(singleRawOption);
 						const _option = this._options.find(_option => 
-							_option.appearances.some(appearance =>
-								deepEqual(parsedOption,appearance)
+							_option._appearances.some(_appearance =>
+								deepEqual(_appearance,appearance)
 							)
 						);
 						if(typeof _option === 'undefined'){
-							warnings.push(new ParsingWarnings.InvalidOption(option));
+							warnings.push(new ParsingWarnings.InvalidOption(singleRawOption));
 							continue argvLoop;
 						}
-						if(_option.canBeLonely){
+						if(_option._canBeLonely){
 							canBeLonely = true;
 						}
-						if(_option.argument!==null && _option.argument.type==='required'){
-							errors.push(new ParsingErrors.ShortOptionWithValueCannotBeCombined(plainOption,_option));
+						if(_option._argument!==null && _option._argument.type==='required'){
+							errors.push(new ParsingErrors.ShortOptionWithValueCannotBeCombined(rawOption,_option));
 						}
-						_option.appearances
-							.filter(appearance => appearance.type==='long')
-							.forEach(appearance => {
-								options[appearance.text] = true;
+						_option._appearances
+							.filter(_appearance => _appearance.type==='long')
+							.forEach(_appearance => {
+								options[_appearance.text] = true;
 							});
 					};
 				}else{
-					const parsedOption = parseOption(plainOption);
+					const appearance = parseOption(rawOption);
 					const _option = this._options.find(_option => 
-						_option.appearances.some(appearance =>
-							deepEqual(parsedOption,appearance)
+						_option._appearances.some(_appearance =>
+							deepEqual(_appearance,appearance)
 						)
 					);
 					if(typeof _option === 'undefined'){
-						warnings.push(new ParsingWarnings.InvalidOption(plainOption));
+						warnings.push(new ParsingWarnings.InvalidOption(rawOption));
 						continue argvLoop;
 					}
-					if(_option.canBeLonely){
+					if(_option._canBeLonely){
 						canBeLonely = true;
 					}
-					if(_option.argument===null){
-						answer = true;
-					}else if(typeof answer === 'undefined'){
-						if(_option.argument.type==='required'){
+					if(_option._argument===null){
+						optionValue = true;
+					}else if(typeof optionValue === 'undefined'){
+						if(_option._argument.type==='required'){
 							if(typeof argvs[i+1] === 'undefined'){
-								errors.push(new ParsingErrors.MissingOptionValue(plainOption,_option));
+								errors.push(new ParsingErrors.MissingOptionValue(rawOption,_option));
 							}
-							answer = argvs[i+1];
+							optionValue = argvs[i+1];
 							i++;
 						}
 					}
-					_option.appearances
-						.filter(appearance => appearance.type==='long')
-						.forEach(appearance => {
-							options[appearance.text] = answer;
+					_option._appearances
+						.filter(_appearance => _appearance.type==='long')
+						.forEach(_appearance => {
+							options[_appearance.text] = optionValue;
 						});
 				}
 			}else{
@@ -296,23 +300,23 @@ export class Program{
 		if(args.length > this._arguments.length){
 			warnings.push(new ParsingWarnings.TooManyArguments(this._arguments,args));
 		}
-		let requiredArgs = this._arguments.filter((_arg) => _arg.type==='required');
-		if(!canBeLonely && requiredArgs.length > args.length){
-			errors.push(new ParsingErrors.MissingArguments(requiredArgs.map(requiredArg => requiredArg.name),args));
+		let _requiredArgs = this._arguments.filter((_arg) => _arg.type==='required');
+		if(!canBeLonely && _requiredArgs.length > args.length){
+			errors.push(new ParsingErrors.MissingArguments(_requiredArgs.map(_requiredArg => _requiredArg.name),args));
 		}
-		let numberOfFillableOptionalArgs = args.length - requiredArgs.length;
+		let numberOfFillableOptionalArgs = args.length - _requiredArgs.length;
 		const argumentObject:any = {};
 		let argI = 0;
-		argLoop: for(let arg of this._arguments){
+		argLoop: for(let _arg of this._arguments){
 			if(typeof args[argI] === 'undefined') break argLoop;
-			if(arg.type==='optional'){
+			if(_arg.type==='optional'){
 				if(numberOfFillableOptionalArgs<=0){
 					continue;
 				}else{
 					numberOfFillableOptionalArgs--;
 				}
 			}
-			argumentObject[arg.name] = args[argI];
+			argumentObject[_arg.name] = args[argI];
 			argI++;
 		}
 		return{
