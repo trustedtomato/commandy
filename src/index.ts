@@ -41,10 +41,7 @@ const parseArgSyntax = (argSyntax:string):Argument[] => {
 };
 
 
-export enum OptionAppearanceTypes{
-	long,
-	short
-}
+export type OptionAppearanceTypes = 'long' | 'short';
 export interface OptionAppearance{
 	text:string
 	type:OptionAppearanceTypes
@@ -54,19 +51,19 @@ export interface BasicOption{
 	argument:Argument|null
 }
 const optionRegex = /^(?:(?:-([a-z0-9_]))|(?:--([a-z0-9-_]+)))$/i;
-const parseOption = ((option:string) => {
+const parseOption = ((option:string):OptionAppearance => {
 	const optionMatch = option.match(optionRegex);
 	if(!optionMatch){
 		throw new Error('Invalid option: '+option);
 	}
 	if(typeof optionMatch[1] === 'string'){
 		return{
-			type: OptionAppearanceTypes.short,
+			type: 'short',
 			text: optionMatch[1]
 		};
 	}else{
 		return{
-			type: OptionAppearanceTypes.long,
+			type: 'long',
 			text: optionMatch[2]
 		};
 	}
@@ -151,6 +148,15 @@ export namespace ParsingWarnings{
 		constructor(rawOption:string){
 			super();
 			this.rawOption = rawOption;
+		}
+	}
+	export class TooManyArguments extends ParsingWarning{
+		readonly args:Argument[]
+		readonly givenArgs:string[]
+		constructor(args:Argument[],givenArgs:string[]){
+			super();
+			this.args = args;
+			this.givenArgs = givenArgs;
 		}
 	}
 }
@@ -247,7 +253,7 @@ export class Program{
 							errors.push(new ParsingErrors.ShortOptionWithValueCannotBeCombined(plainOption,_option));
 						}
 						_option.appearances
-							.filter(appearance => appearance.type===OptionAppearanceTypes.long)
+							.filter(appearance => appearance.type==='long')
 							.forEach(appearance => {
 								options[appearance.text] = true;
 							});
@@ -278,7 +284,7 @@ export class Program{
 						}
 					}
 					_option.appearances
-						.filter(appearance => appearance.type===OptionAppearanceTypes.long)
+						.filter(appearance => appearance.type==='long')
 						.forEach(appearance => {
 							options[appearance.text] = answer;
 						});
@@ -286,6 +292,9 @@ export class Program{
 			}else{
 				args.push(argvs[i]);
 			}
+		}
+		if(args.length > this._arguments.length){
+			warnings.push(new ParsingWarnings.TooManyArguments(this._arguments,args));
 		}
 		let requiredArgs = this._arguments.filter((_arg) => _arg.type==='required');
 		if(!canBeLonely && requiredArgs.length > args.length){

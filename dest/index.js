@@ -30,11 +30,6 @@ const parseArgSyntax = (argSyntax) => {
         throw new Error('Invalid argument: ' + arg);
     });
 };
-var OptionAppearanceTypes;
-(function (OptionAppearanceTypes) {
-    OptionAppearanceTypes[OptionAppearanceTypes["long"] = 0] = "long";
-    OptionAppearanceTypes[OptionAppearanceTypes["short"] = 1] = "short";
-})(OptionAppearanceTypes = exports.OptionAppearanceTypes || (exports.OptionAppearanceTypes = {}));
 const optionRegex = /^(?:(?:-([a-z0-9_]))|(?:--([a-z0-9-_]+)))$/i;
 const parseOption = ((option) => {
     const optionMatch = option.match(optionRegex);
@@ -43,13 +38,13 @@ const parseOption = ((option) => {
     }
     if (typeof optionMatch[1] === 'string') {
         return {
-            type: OptionAppearanceTypes.short,
+            type: 'short',
             text: optionMatch[1]
         };
     }
     else {
         return {
-            type: OptionAppearanceTypes.long,
+            type: 'long',
             text: optionMatch[2]
         };
     }
@@ -132,6 +127,14 @@ var ParsingWarnings;
         }
     }
     ParsingWarnings.InvalidOption = InvalidOption;
+    class TooManyArguments extends ParsingWarning {
+        constructor(args, givenArgs) {
+            super();
+            this.args = args;
+            this.givenArgs = givenArgs;
+        }
+    }
+    ParsingWarnings.TooManyArguments = TooManyArguments;
 })(ParsingWarnings = exports.ParsingWarnings || (exports.ParsingWarnings = {}));
 /*--- define Program ---*/
 class Program {
@@ -204,7 +207,7 @@ class Program {
                             errors.push(new ParsingErrors.ShortOptionWithValueCannotBeCombined(plainOption, _option));
                         }
                         _option.appearances
-                            .filter(appearance => appearance.type === OptionAppearanceTypes.long)
+                            .filter(appearance => appearance.type === 'long')
                             .forEach(appearance => {
                             options[appearance.text] = true;
                         });
@@ -234,7 +237,7 @@ class Program {
                         }
                     }
                     _option.appearances
-                        .filter(appearance => appearance.type === OptionAppearanceTypes.long)
+                        .filter(appearance => appearance.type === 'long')
                         .forEach(appearance => {
                         options[appearance.text] = answer;
                     });
@@ -243,6 +246,9 @@ class Program {
             else {
                 args.push(argvs[i]);
             }
+        }
+        if (args.length > this._arguments.length) {
+            warnings.push(new ParsingWarnings.TooManyArguments(this._arguments, args));
         }
         let requiredArgs = this._arguments.filter((_arg) => _arg.type === 'required');
         if (!canBeLonely && requiredArgs.length > args.length) {

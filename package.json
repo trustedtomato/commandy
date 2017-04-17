@@ -11,9 +11,8 @@
     "test": "mocha",
     "watch": "tsc -w",
     "watch-examples": "tsc -p examples/tsconfig.json -w",
-    "preversion": "npm test",
-    "version": "tsc && git add .",
-    "postversion": "git push"
+    "preversion": "tsc && npm test",
+    "postversion": "git push && git push --tags && npm publish"
   },
   "devDependencies": {
     "mocha": "^3.2.0",

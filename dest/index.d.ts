@@ -3,10 +3,7 @@ export interface Argument {
     type: ArgumentTypes;
     name: string;
 }
-export declare enum OptionAppearanceTypes {
-    long = 0,
-    short = 1,
-}
+export declare type OptionAppearanceTypes = 'long' | 'short';
 export interface OptionAppearance {
     text: string;
     type: OptionAppearanceTypes;
@@ -48,6 +45,11 @@ export declare namespace ParsingWarnings {
     class InvalidOption extends ParsingWarning {
         readonly rawOption: string;
         constructor(rawOption: string);
+    }
+    class TooManyArguments extends ParsingWarning {
+        readonly args: Argument[];
+        readonly givenArgs: string[];
+        constructor(args: Argument[], givenArgs: string[]);
     }
 }
 export interface Result {
