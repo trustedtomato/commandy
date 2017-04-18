@@ -190,6 +190,41 @@ export class Program{
 		commands: new Map(),
 		options: []
 	}
+	description(description:string):this{
+		this.config.description = description;
+		return this;
+	}
+	arguments(syntax:string):this{
+		const _arguments = parseArgSyntax(syntax);
+		this.config.arguments = _arguments;
+		return this;
+	}
+	option(appearancesOrOption:string|Option,descriptionOrOptions?:string|OptionOptions,options?:OptionOptions):this{
+		const option =
+			typeof appearancesOrOption === 'string'
+			? new Option(appearancesOrOption,descriptionOrOptions,options)
+			: appearancesOrOption;
+		
+		const alreadyExistingAppearance =
+			option.appearances.find(appearance =>
+				this.config.options.some(_option =>
+					_option.appearances.some(_appearance =>
+						String(_appearance)===String(appearance)
+					)
+				)
+			);
+
+		if(alreadyExistingAppearance){
+			throw new Error('Option appearance already exists: '+alreadyExistingAppearance.type);
+		}
+
+		this.config.options.push(option);
+		return this;
+	}
+	command(cmd:string,program:Program):this{
+		this.config.commands.set(cmd,program);
+		return this;
+	}
 	private parseArgvs(argvs:string[],inheritedOptions:Option[] = []):Result{
 		const firstArgumentIndex = argvs.findIndex(argv => !argv.startsWith('-'));
 		if(firstArgumentIndex>=0){
@@ -310,46 +345,8 @@ export class Program{
 			warnings
 		};
 	}
-	description(description:string):this{
-		this.config.description = description;
-		return this;
-	}
-	arguments(syntax:string):this{
-		const _arguments = parseArgSyntax(syntax);
-		this.config.arguments = _arguments;
-		return this;
-	}
-	option(appearancesOrOption:string|Option,descriptionOrOptions?:string|OptionOptions,options?:OptionOptions):this{
-		const option =
-			typeof appearancesOrOption === 'string'
-			? new Option(appearancesOrOption,descriptionOrOptions,options)
-			: appearancesOrOption;
-		
-		const alreadyExistingAppearance =
-			option.appearances.find(appearance =>
-				this.config.options.some(_option =>
-					_option.appearances.some(_appearance =>
-						String(_appearance)===String(appearance)
-					)
-				)
-			);
-
-		if(alreadyExistingAppearance){
-			throw new Error('Option appearance already exists: '+alreadyExistingAppearance.type);
-		}
-
-		this.config.options.push(option);
-		return this;
-	}
-	command(cmd:string,program:Program):this{
-		this.config.commands.set(cmd,program);
-		return this;
-	}
 	parse(argvs:string[]):Result{
 		return this.parseArgvs(argvs);
-	}
-	generateBasicHelp(){
-		
 	}
 	constructor(syntax:string = ''){
 		this.arguments(syntax);
