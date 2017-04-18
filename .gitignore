@@ -1,5 +1,5 @@
-# Example TypeScript destination
-examples/dest
+# TypeScript destinations
+**/dest/**
 
 # Logs
 logs

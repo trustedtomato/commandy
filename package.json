@@ -8,7 +8,7 @@
   "author": "Halasi Tamás <trusted.tomato@gmail.com>",
   "license": "MIT",
   "scripts": {
-    "test": "mocha",
+    "test": "tsc && mocha",
     "watch": "tsc -w",
     "watch-examples": "tsc -p examples/tsconfig.json -w",
     "preversion": "tsc && npm test",
