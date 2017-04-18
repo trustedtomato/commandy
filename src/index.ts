@@ -83,28 +83,32 @@ const parseOptionSyntax = (optionSyntax:string):BasicOption => {
 
 
 /*--- define Option ---*/
+export interface OptionOptions{
+	inheritance?:boolean
+}
+
 export class Option{
 	appearances:OptionAppearance[]
 	argument:Argument|null
 	description?:string
-	canBeLonely:boolean = false
-	constructor(fullSyntax:string,descriptionOrCanBeLonely?:string|boolean,canBeLonely?:boolean){
+	inheritance:boolean = false
+	constructor(fullSyntax:string,descriptionOrOptions?:string|OptionOptions,options?:OptionOptions){
 		Object.assign(this,parseOptionSyntax(fullSyntax));
-		if(typeof descriptionOrCanBeLonely === 'string'){
-			this.description = descriptionOrCanBeLonely;
+		if(typeof descriptionOrOptions === 'string'){
+			this.description = descriptionOrOptions;
 		}else{
-			if(typeof canBeLonely !== 'undefined'){
+			if(typeof options !== 'undefined'){
 				throw new Error('Cannot define two options!');
 			}
-			canBeLonely = descriptionOrCanBeLonely;
+			options = descriptionOrOptions;
 		}
-		if(typeof canBeLonely === 'boolean'){
-			this.canBeLonely = canBeLonely;
+		if(typeof options === 'object'){
+			if(typeof options.inheritance === 'boolean') this.inheritance = options.inheritance;
 		}
 	}
 }
-export const createOption = (fullSyntax:string,descriptionOrCanBeLonely?:string|boolean,canBeLonely?:boolean) => {
-	return new Option(fullSyntax,descriptionOrCanBeLonely,canBeLonely);
+export const createOption = (fullSyntax:string,descriptionOrOptions?:string|OptionOptions,options?:OptionOptions) => {
+	return new Option(fullSyntax,descriptionOrOptions,options);
 };
 
 
@@ -185,35 +189,17 @@ export class Program{
 	private _description:string = ''
 	private _commands:Map<string,Program> = new Map()
 	private _options:Option[] = []
-	description(description:string):this{
-		this._description = description;
-		return this;
-	}
-	arguments(syntax:string):this{
-		const _arguments = parseArgSyntax(syntax);
-		this._arguments = _arguments;
-		return this;
-	}
-	option(appearancesOrOption:string|Option,descriptionOrCanBeLonely?:string,canBeLonely?:boolean):this{
-		if(typeof appearancesOrOption === 'string'){
-			this._options.push(new Option(appearancesOrOption,descriptionOrCanBeLonely,canBeLonely));
-		}else if(appearancesOrOption instanceof Option){
-			this._options.push(appearancesOrOption);
-		}
-		return this;
-	}
-	command(cmd:string,program:Program):this{
-		this._commands.set(cmd,program);
-		return this;
-	}
-	parse(argvs:string[]):Result{
+	private _parseArgvs(argvs:string[],inheritedOptions:Option[] = []):Result{
 		const firstArgumentIndex = argvs.findIndex(argv => !argv.startsWith('-'));
 		if(firstArgumentIndex>=0){
 			const firstArgument = argvs[firstArgumentIndex];
 			const matchingCommand = this._commands.get(firstArgument);
 			if(matchingCommand){
 				argvs.splice(firstArgumentIndex,1);
-				const parsed = matchingCommand.parse(argvs);
+
+				const inheritingOptions = this._options.filter(_option => _option.inheritance===true);
+		
+				const parsed = matchingCommand._parseArgvs(argvs,inheritingOptions.concat(inheritedOptions));
 				return Object.assign(parsed,{commandChain: (firstArgument+' '+parsed.commandChain).trim()});
 			}
 		}
@@ -223,7 +209,8 @@ export class Program{
 
 		const options:{[option: string]:string|boolean} = {};
 		const args:string[] = [];
-		let canBeLonely = false;
+
+		const availableOptions:Option[] = this._options.concat(inheritedOptions);
 
 		argvLoop: for(let i = 0; i < argvs.length; i++){
 			if(argvs[i].startsWith('-')){
@@ -241,7 +228,7 @@ export class Program{
 					const multipleRawOptions = rawOption.replace('-','').split('').map(option => '-'+option);
 					for(let singleRawOption of multipleRawOptions){
 						const appearance = parseOption(singleRawOption);
-						const _option = this._options.find(_option => 
+						const _option = availableOptions.find(_option => 
 							_option.appearances.some(_appearance =>
 								deepEqual(_appearance,appearance)
 							)
@@ -249,9 +236,6 @@ export class Program{
 						if(typeof _option === 'undefined'){
 							warnings.push(new ParsingWarnings.InvalidOption(singleRawOption));
 							continue argvLoop;
-						}
-						if(_option.canBeLonely){
-							canBeLonely = true;
 						}
 						if(_option.argument!==null && _option.argument.type==='required'){
 							errors.push(new ParsingErrors.ShortOptionWithValueCannotBeCombined(rawOption,_option));
@@ -264,7 +248,7 @@ export class Program{
 					};
 				}else{
 					const appearance = parseOption(rawOption);
-					const _option = this._options.find(_option => 
+					const _option = availableOptions.find(_option => 
 						_option.appearances.some(_appearance =>
 							deepEqual(_appearance,appearance)
 						)
@@ -272,9 +256,6 @@ export class Program{
 					if(typeof _option === 'undefined'){
 						warnings.push(new ParsingWarnings.InvalidOption(rawOption));
 						continue argvLoop;
-					}
-					if(_option.canBeLonely){
-						canBeLonely = true;
 					}
 					if(_option.argument===null){
 						optionValue = true;
@@ -301,7 +282,7 @@ export class Program{
 			warnings.push(new ParsingWarnings.TooManyArguments(this._arguments,args));
 		}
 		let _requiredArgs = this._arguments.filter((_arg) => _arg.type==='required');
-		if(!canBeLonely && _requiredArgs.length > args.length){
+		if(_requiredArgs.length > args.length){
 			errors.push(new ParsingErrors.MissingArguments(_requiredArgs.map(_requiredArg => _requiredArg.name),args));
 		}
 		let numberOfFillableOptionalArgs = args.length - _requiredArgs.length;
@@ -327,6 +308,30 @@ export class Program{
 			errors,
 			warnings
 		};
+	}
+	description(description:string):this{
+		this._description = description;
+		return this;
+	}
+	arguments(syntax:string):this{
+		const _arguments = parseArgSyntax(syntax);
+		this._arguments = _arguments;
+		return this;
+	}
+	option(appearancesOrOption:string|Option,descriptionOrOptions?:string|OptionOptions,options?:OptionOptions):this{
+		if(typeof appearancesOrOption === 'string'){
+			this._options.push(new Option(appearancesOrOption,descriptionOrOptions,options));
+		}else if(appearancesOrOption instanceof Option){
+			this._options.push(appearancesOrOption);
+		}
+		return this;
+	}
+	command(cmd:string,program:Program):this{
+		this._commands.set(cmd,program);
+		return this;
+	}
+	parse(argvs:string[]):Result{
+		return this._parseArgvs(argvs);
 	}
 	constructor(syntax:string = ''){
 		this.arguments(syntax);

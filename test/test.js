@@ -38,7 +38,13 @@ const argumentProgram = createProgram('<opt1> [opt2] <opt3>')
 	.option('-V, --version',true);
 
 const mainArgumentProgram = createProgram()
-	.command('test',argumentProgram)
+	.command('test',argumentProgram);
+
+const inheritanceProgram = createProgram()
+	.option('-h, --help','show help',{inheritance: true})
+	.option('-b, --banana','is there a banana?',{inheritance: true})
+	.option('-d, --dingdong','dingdong!')
+	.command('test',programWithManyOptions)
 
 
 
@@ -131,9 +137,12 @@ describe('Option parsing',function(){
 		assert(programWithManyOptions.parse(['-a=red']).options.apple==='red');
 	});
 
-	it('should not error when there is a lazy option but the aruments are not enough',function(){
+	it('should parse options but error when the arguments are not enough',function(){
 		const parsed = mainArgumentProgram.parse(['test','--help']);
-		assert(parsed.options.help===true && parsed.errors.length===0 && parsed.warnings.length===0);
+		assert(
+			parsed.options.help===true &&
+			parsed.errors.length===1 &&
+			parsed.errors[0] instanceof ParsingErrors.MissingArguments);
 	});
 
 	it('should not error when there are (multiple) lazy options but the aruments are not enough',function(){
@@ -171,5 +180,27 @@ describe('Argument precedence',function(){
 	it('should be able to add the optional argument to the middle if present',function(){
 		const parsed = mainArgumentProgram.parse(['test','a','b','c']);
 		assert(parsed.arguments.opt1==='a' && parsed.arguments.opt2==='b' && parsed.arguments.opt3==='c');
+	});
+});
+
+describe('Option inheritance',function(){
+	it('should inherit options with "inheritance"',function(){
+		const parsed = inheritanceProgram.parse(['test','-h']);
+		assert(parsed.options.help===true);
+	});
+	it('should not inherit options without "inheritance"',function(){
+		const parsed = inheritanceProgram.parse(['test','-d']);
+		assert(
+			typeof parsed.options.dingdong === 'undefined' &&
+			parsed.warnings.length===1 &&
+			parsed.warnings[0] instanceof ParsingWarnings.InvalidOption
+		);
+	});
+	it('the closer option should override the farther one (tho this feature shouldn\'t be really used)',function(){
+		const parsed = inheritanceProgram.parse(['test','-b','nah']);
+		assert(
+			parsed.options.banana === 'nah' &&
+			parsed.warnings.length===0
+		);
 	});
 });
