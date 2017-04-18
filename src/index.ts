@@ -179,21 +179,28 @@ export interface Result{
 
 /*--- define Program ---*/
 export class Program{
-	private _arguments:Argument[]
-	private _description:string = ''
-	private _commands:Map<string,Program> = new Map()
-	private _options:Option[] = []
-	private _parseArgvs(argvs:string[],inheritedOptions:Option[] = []):Result{
+	config:{
+		arguments:Argument[]
+		description:string
+		commands:Map<string,Program>
+		options:Option[]
+	} = {
+		arguments: [],
+		description: '',
+		commands: new Map(),
+		options: []
+	}
+	private parseArgvs(argvs:string[],inheritedOptions:Option[] = []):Result{
 		const firstArgumentIndex = argvs.findIndex(argv => !argv.startsWith('-'));
 		if(firstArgumentIndex>=0){
 			const firstArgument = argvs[firstArgumentIndex];
-			const matchingCommand = this._commands.get(firstArgument);
+			const matchingCommand = this.config.commands.get(firstArgument);
 			if(matchingCommand){
 				argvs.splice(firstArgumentIndex,1);
 
-				const inheritingOptions = this._options.filter(_option => _option.inheritance===true);
+				const inheritingOptions = this.config.options.filter(_option => _option.inheritance===true);
 		
-				const parsed = matchingCommand._parseArgvs(argvs,inheritingOptions.concat(inheritedOptions));
+				const parsed = matchingCommand.parseArgvs(argvs,inheritingOptions.concat(inheritedOptions));
 				return Object.assign(parsed,{commandChain: (firstArgument+' '+parsed.commandChain).trim()});
 			}
 		}
@@ -204,7 +211,7 @@ export class Program{
 		const options:{[option: string]:string|boolean} = {};
 		const args:string[] = [];
 
-		const availableOptions:Option[] = this._options.concat(inheritedOptions);
+		const availableOptions:Option[] = this.config.options.concat(inheritedOptions);
 
 		argvLoop: for(let i = 0; i < argvs.length; i++){
 			if(argvs[i].startsWith('-')){
@@ -272,17 +279,17 @@ export class Program{
 				args.push(argvs[i]);
 			}
 		}
-		if(args.length > this._arguments.length){
-			warnings.push(new ParsingWarnings.TooManyArguments(this._arguments,args));
+		if(args.length > this.config.arguments.length){
+			warnings.push(new ParsingWarnings.TooManyArguments(this.config.arguments,args));
 		}
-		let _requiredArgs = this._arguments.filter((_arg) => _arg.type==='required');
+		let _requiredArgs = this.config.arguments.filter((_arg) => _arg.type==='required');
 		if(_requiredArgs.length > args.length){
 			errors.push(new ParsingErrors.MissingArguments(_requiredArgs.map(_requiredArg => _requiredArg.name),args));
 		}
 		let numberOfFillableOptionalArgs = args.length - _requiredArgs.length;
 		const argumentObject:any = {};
 		let argI = 0;
-		argLoop: for(let _arg of this._arguments){
+		argLoop: for(let _arg of this.config.arguments){
 			if(typeof args[argI] === 'undefined') break argLoop;
 			if(_arg.type==='optional'){
 				if(numberOfFillableOptionalArgs<=0){
@@ -304,12 +311,12 @@ export class Program{
 		};
 	}
 	description(description:string):this{
-		this._description = description;
+		this.config.description = description;
 		return this;
 	}
 	arguments(syntax:string):this{
 		const _arguments = parseArgSyntax(syntax);
-		this._arguments = _arguments;
+		this.config.arguments = _arguments;
 		return this;
 	}
 	option(appearancesOrOption:string|Option,descriptionOrOptions?:string|OptionOptions,options?:OptionOptions):this{
@@ -320,7 +327,7 @@ export class Program{
 		
 		const alreadyExistingAppearance =
 			option.appearances.find(appearance =>
-				this._options.some(_option =>
+				this.config.options.some(_option =>
 					_option.appearances.some(_appearance =>
 						String(_appearance)===String(appearance)
 					)
@@ -331,15 +338,18 @@ export class Program{
 			throw new Error('Option appearance already exists: '+alreadyExistingAppearance.type);
 		}
 
-		this._options.push(option);
+		this.config.options.push(option);
 		return this;
 	}
 	command(cmd:string,program:Program):this{
-		this._commands.set(cmd,program);
+		this.config.commands.set(cmd,program);
 		return this;
 	}
 	parse(argvs:string[]):Result{
-		return this._parseArgvs(argvs);
+		return this.parseArgvs(argvs);
+	}
+	generateBasicHelp(){
+		
 	}
 	constructor(syntax:string = ''){
 		this.arguments(syntax);
