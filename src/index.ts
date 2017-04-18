@@ -13,13 +13,6 @@ Program user: The persion who uses what uses this library
 
 
 
-/*--- helper functions ---*/
-const deepEqual = (obj1:{[key: string]:any},obj2:{[key: string]:any}):boolean => {
-	return JSON.stringify(obj1) === JSON.stringify(obj2);
-};
-
-
-
 /*--- for parsing program definer's input */
 export type ArgumentTypes = 'required' | 'optional';
 export interface Argument{
@@ -41,41 +34,42 @@ const parseArgSyntax = (argSyntax:string):Argument[] => {
 };
 
 
+const optionRegex = /^(?:(?:-([a-z0-9_]))|(?:--([a-z0-9-_]+)))$/i;
+
 export type OptionAppearanceTypes = 'long' | 'short';
-export interface OptionAppearance{
+export class OptionAppearance{
 	text:string
 	type:OptionAppearanceTypes
+	constructor(option:string){
+		const optionMatch = option.match(optionRegex);
+		if(!optionMatch){
+			throw new Error('Invalid option: '+option);
+		}
+		if(typeof optionMatch[1] === 'string'){
+			this.type = 'short';
+			this.text = optionMatch[1];
+		}else{
+			this.type = 'long';
+			this.text = optionMatch[2];
+		}
+	}
+	toString(){
+		return (this.type==='long' ? '--' : '-') + this.text;
+	}
 }
+
 export interface BasicOption{
 	appearances:OptionAppearance[],
 	argument:Argument|null
 }
-const optionRegex = /^(?:(?:-([a-z0-9_]))|(?:--([a-z0-9-_]+)))$/i;
-const parseOption = ((option:string):OptionAppearance => {
-	const optionMatch = option.match(optionRegex);
-	if(!optionMatch){
-		throw new Error('Invalid option: '+option);
-	}
-	if(typeof optionMatch[1] === 'string'){
-		return{
-			type: 'short',
-			text: optionMatch[1]
-		};
-	}else{
-		return{
-			type: 'long',
-			text: optionMatch[2]
-		};
-	}
-});
 const parseOptionSyntax = (optionSyntax:string):BasicOption => {
 	const options = optionSyntax.trim().split(/[,\s]+/g);
 	try{
 		const argument = parseArgSyntax(options[options.length-1])[0];
-		const appearances:OptionAppearance[] = options.slice(0,-1).map(option => parseOption(option));
+		const appearances:OptionAppearance[] = options.slice(0,-1).map(option => new OptionAppearance(option));
 		return{argument,appearances};
 	}catch(err){
-		const appearances:OptionAppearance[] = options.map(option => parseOption(option));
+		const appearances:OptionAppearance[] = options.map(option => new OptionAppearance(option));
 		return{appearances,argument: null};
 	}
 };
@@ -227,10 +221,10 @@ export class Program{
 				if(!rawOption.startsWith('--') && rawOption.length>2){
 					const multipleRawOptions = rawOption.replace('-','').split('').map(option => '-'+option);
 					for(let singleRawOption of multipleRawOptions){
-						const appearance = parseOption(singleRawOption);
+						const appearance = new OptionAppearance(singleRawOption);
 						const _option = availableOptions.find(_option => 
 							_option.appearances.some(_appearance =>
-								deepEqual(_appearance,appearance)
+								String(_appearance)===String(appearance)
 							)
 						);
 						if(typeof _option === 'undefined'){
@@ -247,10 +241,10 @@ export class Program{
 							});
 					};
 				}else{
-					const appearance = parseOption(rawOption);
+					const appearance = new OptionAppearance(rawOption);
 					const _option = availableOptions.find(_option => 
 						_option.appearances.some(_appearance =>
-							deepEqual(_appearance,appearance)
+							String(_appearance)===String(appearance)
 						)
 					);
 					if(typeof _option === 'undefined'){
@@ -319,11 +313,25 @@ export class Program{
 		return this;
 	}
 	option(appearancesOrOption:string|Option,descriptionOrOptions?:string|OptionOptions,options?:OptionOptions):this{
-		if(typeof appearancesOrOption === 'string'){
-			this._options.push(new Option(appearancesOrOption,descriptionOrOptions,options));
-		}else if(appearancesOrOption instanceof Option){
-			this._options.push(appearancesOrOption);
+		const option =
+			typeof appearancesOrOption === 'string'
+			? new Option(appearancesOrOption,descriptionOrOptions,options)
+			: appearancesOrOption;
+		
+		const alreadyExistingAppearance =
+			option.appearances.find(appearance =>
+				this._options.some(_option =>
+					_option.appearances.some(_appearance =>
+						String(_appearance)===String(appearance)
+					)
+				)
+			);
+
+		if(alreadyExistingAppearance){
+			throw new Error('Option appearance already exists: '+alreadyExistingAppearance.type);
 		}
+
+		this._options.push(option);
 		return this;
 	}
 	command(cmd:string,program:Program):this{

@@ -12,6 +12,7 @@
     "watch": "tsc -w",
     "watch-examples": "tsc -p examples/tsconfig.json -w",
     "preversion": "tsc && npm test",
+    "version": "git add .",
     "postversion": "git push && git push --tags && npm publish"
   },
   "devDependencies": {
