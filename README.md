@@ -7,6 +7,8 @@
 
 The scalable & robust solution for command-line interfaces
 
-
 ## Installation
 ```npm install commandy --save```
+
+## API Reference
+*Comming soon...*

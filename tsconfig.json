@@ -3,12 +3,9 @@
 		"module": "commonjs",
 		"moduleResolution": "node",
 		"outDir": "dest",
-		"target": "es2015",
+		"target": "es2016",
 		"alwaysStrict": true,
 		"noImplicitAny": true,
-		"lib": [
-			"es2017"
-		],
 		"declaration": true
 	},
 	"include": [

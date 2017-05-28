@@ -1,5 +1,5 @@
 const assert = require('assert');
-const {createProgram,ParsingErrors,ParsingWarnings} = require('..');
+const {createProgram} = require('..');
 
 function doesError(func){
 	assert((function(){
@@ -15,13 +15,13 @@ function doesError(func){
 
 
 const basicProgram = createProgram()
-	.option('-h, --help','show help',true)
-	.option('-V, --version','show version',true);
+	.option('-h, --help',{inheritance: true})
+	.option('-V, --version',{inheritance: true});
 
 const programWithManyOptions = createProgram()
-	.option('-a, --apple <apple-type>','type of the apple')
-	.option('-b, --banana <banana-type>','type of the banana')
-	.option('-c, --coconut [coconut-type]','type of the coconut');
+	.option('-a, --apple <apple-type>')
+	.option('-b, --banana <banana-type>')
+	.option('-c, --coconut [coconut-type]');
 
 const subSubProgram = createProgram('[comm]')
 	.option('-h, --help');
@@ -34,22 +34,22 @@ const subbyProgram = createProgram()
 	.command('command-lvl-1',subProgram);
 
 const argumentProgram = createProgram('<opt1> [opt2] <opt3>')
-	.option('-h, --help',true)
-	.option('-V, --version',true);
+	.option('-h, --help',{inheritance: true})
+	.option('-V, --version',{inheritance: true});
 
 const mainArgumentProgram = createProgram()
 	.command('test',argumentProgram);
 
 const inheritanceProgram = createProgram()
-	.option('-h, --help','show help',{inheritance: true})
-	.option('-b, --banana','is there a banana?',{inheritance: true})
-	.option('-d, --dingdong','dingdong!')
+	.option('-h, --help',{inheritance: true})
+	.option('-b, --banana',{inheritance: true})
+	.option('-d, --dingdong')
 	.command('test',programWithManyOptions)
 
 
 
-describe('Program definer error cases',function(){
-	describe('Invalid option syntax should be thrown on',function(){
+describe('it should error on',function(){
+	describe('invalid option syntax definition:',function(){
 		it('multi-letter one dash option (-f, -force)',function(){
 			doesError(() => {
 				createProgram()
@@ -66,29 +66,22 @@ describe('Program definer error cases',function(){
 	});
 });
 
-describe('Program user error & warning cases',function(){
-	it('should send two erorrs when there are two one dash options are together & both of them needs a value',function(){
-		const parsed = programWithManyOptions.parse(['-ab','red']);
-		assert(parsed.errors.length===2 && parsed.errors.every(error =>
-			error instanceof ParsingErrors.ShortOptionWithValueCannotBeCombined
-		));
-	});
-	
+describe('Program user error & warning cases',function(){	
 	it('should send erorr when the option needs value but there is no value',function(){
 		const parsed = programWithManyOptions.parse(['--apple']);
-		assert(parsed.errors.length===1 && parsed.errors[0] instanceof ParsingErrors.MissingOptionValue);
+		assert(parsed.errors.length===1 && parsed.errors[0].type==='MissingOptionValue');
 	});
 
 	it('should warn on unknown option',function(){
 		const parsed = basicProgram.parse(['--unknownoption']);
-		assert(parsed.warnings.length===1 && parsed.warnings[0] instanceof ParsingWarnings.InvalidOption);
+		assert(parsed.warnings.length===1 && parsed.warnings[0].type==='InvalidOption');
 	});
 
-	it('should send an error when there is no lazy option and the aruments are not enough',function(){
+	it('should send an error when the arguments are not enough',function(){
 		const parsed = mainArgumentProgram.parse(['test','a']);
 		assert(
 			parsed.errors.length===1 &&
-			parsed.errors[0] instanceof ParsingErrors.MissingArguments
+			parsed.errors[0].type==='MissingArguments'
 		)
 	});
 
@@ -96,58 +89,62 @@ describe('Program user error & warning cases',function(){
 		const parsed = mainArgumentProgram.parse(['test','a',',b','c','d']);
 		assert(
 			parsed.warnings.length===1 &&
-			parsed.warnings[0] instanceof ParsingWarnings.TooManyArguments
+			parsed.warnings[0].type==='TooManyArguments'
 		)
 	});
 });
 
-describe('Option parsing',function(){
-	it('should parse one single dash option',function(){
-		assert(basicProgram.parse(['-h']).options.help===true);
+describe('Options should be parsed correctly when',function(){
+	it('they are single dashed',function(){
+		assert(basicProgram.parse(['-h']).options.help[0]===true);
 	});
 
-	it('should parse multiple single dash options (separately)',function(){
+	it('they are single dashed (multiple, separately)',function(){
 		const parsed = basicProgram.parse(['-V','-h']);
-		assert(parsed.options.help===true && parsed.options.version===true);
+		assert(parsed.options.help[0]===true && parsed.options.version[0]===true);
 	});
 
-	it('should parse multiple single dash options (together)',function(){
+	it('they are single dashed (multiple, together)',function(){
 		const parsed = basicProgram.parse(['-hV']);
-		assert(parsed.options.help===true && parsed.options.version===true);
+		assert(parsed.options.help[0]===true && parsed.options.version[0]===true);
 	});
 
-	it('should parse one two dash option',function(){
-		assert(basicProgram.parse(['--help']).options.help===true);
+	it('they are two dashed',function(){
+		assert(basicProgram.parse(['--help']).options.help[0]===true);
 	});
 
-	it('should parse multiple two dash options',function(){
+	it('they are two dashed (multiple)',function(){
 		const parsed = basicProgram.parse(['--help','--version']);
-		assert(parsed.options.help===true && parsed.options.version===true);
+		assert(parsed.options.help[0]===true && parsed.options.version[0]===true);
 	});
 	
-	it('should parse option value done by space if the value is required',function(){
-		assert(programWithManyOptions.parse(['-a','red']).options.apple==='red');
+	it('their value is required (next argv is its argument if there is no equal sign)',function(){
+		assert(programWithManyOptions.parse(['-a','red']).options.apple[0]==='red');
 	});
 
-	it('should not parse option value done by space if the value is optional',function(){
-		assert(programWithManyOptions.parse(['-c','blue']).options.coconut!=='blue');
+	it('their value is done by space and the value is optional (it should not have it)',function(){
+		assert(programWithManyOptions.parse(['-c','blue']).options.coconut[0]!=='blue');
 	});
 
-	it('should parse option value done by equal sign',function(){
-		assert(programWithManyOptions.parse(['-a=red']).options.apple==='red');
+	it('their value is done by equal sign',function(){
+		assert(programWithManyOptions.parse(['-a=red']).options.apple[0]==='red');
 	});
 
-	it('should parse options but error when the arguments are not enough',function(){
+	it('arguments are not enough, but should send an error ',function(){
 		const parsed = mainArgumentProgram.parse(['test','--help']);
 		assert(
-			parsed.options.help===true &&
-			parsed.errors.length===1 &&
-			parsed.errors[0] instanceof ParsingErrors.MissingArguments);
+			parsed.options.help[0]===true &&
+			parsed.errors.length===1);
 	});
 
-	it('should not error when there are (multiple) lazy options but the aruments are not enough',function(){
+	it('they are optional and there is no value & still give it the value of true because it\'s there',function(){
+		const parsed = programWithManyOptions.parse(['-c']);
+		assert(parsed.options.coconut[0]===true);
+	});
+
+	it('they are lazy options but the arguments are not enough (multiple)',function(){
 		const parsed = mainArgumentProgram.parse(['test','-hV']);
-		assert(parsed.options.help===true && parsed.options.version===true);
+		assert(parsed.options.help[0]===true && parsed.options.version[0]===true);
 	});
 });
 
@@ -156,17 +153,7 @@ describe('Command parsing',() => {
 		const parsed = subbyProgram.parse(['command-lvl-1','command-lvl-2','cheese']);
 		assert(
 			parsed.program===subSubProgram &&
-			parsed.commandChain==='command-lvl-1 command-lvl-2' &&
 			parsed.arguments.comm==='cheese'
-		);
-	});
-
-	it('should parse option before a command',function(){
-		const parsed = subbyProgram.parse(['command-lvl-1','--help','command-lvl-2']);
-		assert(
-			parsed.program===subSubProgram &&
-			parsed.commandChain==='command-lvl-1 command-lvl-2' &&
-			parsed.options.help===true
 		);
 	});
 });
@@ -186,20 +173,19 @@ describe('Argument precedence',function(){
 describe('Option inheritance',function(){
 	it('should inherit options with "inheritance"',function(){
 		const parsed = inheritanceProgram.parse(['test','-h']);
-		assert(parsed.options.help===true);
+		assert(parsed.options.help[0]===true);
 	});
 	it('should not inherit options without "inheritance"',function(){
 		const parsed = inheritanceProgram.parse(['test','-d']);
 		assert(
 			typeof parsed.options.dingdong === 'undefined' &&
-			parsed.warnings.length===1 &&
-			parsed.warnings[0] instanceof ParsingWarnings.InvalidOption
+			parsed.warnings.length===1
 		);
 	});
 	it('the closer option should override the farther one (tho this feature shouldn\'t be really used)',function(){
 		const parsed = inheritanceProgram.parse(['test','-b','nah']);
 		assert(
-			parsed.options.banana === 'nah' &&
+			parsed.options.banana[0] === 'nah' &&
 			parsed.warnings.length===0
 		);
 	});
