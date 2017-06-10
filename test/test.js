@@ -95,6 +95,10 @@ describe('Program user error & warning cases',function(){
 });
 
 describe('Options should be parsed correctly when',function(){
+	it('there is no option - it should still make the arrays',function(){
+		assert(programWithManyOptions.parse([]).options.apple.length===0);
+	});
+
 	it('they are single dashed',function(){
 		assert(basicProgram.parse(['-h']).options.help[0]===true);
 	});

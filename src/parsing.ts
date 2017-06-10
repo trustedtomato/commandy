@@ -208,24 +208,32 @@ const parseArgs = (args:string[],configArgs:Input.Argument[]) => {
 };
 export const parseArgvs = (argvsAndCommands:string[],baseProgramConfig:Input.ProgramConfig):Result => {
 	const {argvs,programConfig,inheritedOptions} = parseCommands(argvsAndCommands,baseProgramConfig);
-	const {options,args,errors: optionErrors,warnings: optionWarnings} = parseOptions(argvs,programConfig.options.concat(inheritedOptions));	
+	const availableOptions = programConfig.options.concat(inheritedOptions);
+	const {options,args,errors: optionErrors,warnings: optionWarnings} = parseOptions(argvs,availableOptions);	
 	const {argumentObject,errors: argumentErrors,warnings: argumentWarnings} = parseArgs(args,programConfig.args);
 	
 	const errors = optionErrors.concat(argumentErrors);
 	const warnings = optionWarnings.concat(argumentWarnings);
 
+	const appearanceMap:Map<string,(string|boolean)[]> = new Map();
+	for(const option of availableOptions){
+		for(const appearance of option.appearances){
+			if(appearance.startsWith('--')){
+				const appearanceText = appearance.replace('--','');
+				appearanceMap.set(appearanceText,[]);
+			}
+		}
+	}
+
 	const optionMap = squeezePairs(options);
-	const appearanceMap = new Map([...flattenMapKeys(new Map(
-		[...twist([...optionMap],'0 appearances')]
-			.map(([appearances,[option,value]]):[string[],(string|boolean)[]] =>
-				[appearances,value]
-			)
-	))]
-		.filter(([appearance]) => appearance.startsWith('--'))
-		.map(x => {
-			x[0] = x[0].replace('--','');
-			return x;
-		}));
+	for(const [option,value] of optionMap){
+		for(const appearance of option.appearances){
+			if(appearance.startsWith('--')){
+				const appearanceText = appearance.replace('--','');
+				appearanceMap.get(appearanceText).push(...value);
+			}
+		}
+	}
 
 	return{
 		program: programConfig.program,
