@@ -82,7 +82,7 @@ describe('Program user error & warning cases',function(){
 		assert(
 			parsed.errors.length===1 &&
 			parsed.errors[0].type==='MissingArguments'
-		)
+		);
 	});
 
 	it('should warn if there are too many arguments',function(){
@@ -90,7 +90,7 @@ describe('Program user error & warning cases',function(){
 		assert(
 			parsed.warnings.length===1 &&
 			parsed.warnings[0].type==='TooManyArguments'
-		)
+		);
 	});
 });
 
