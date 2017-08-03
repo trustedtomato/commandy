@@ -1,126 +1,99 @@
-import {splitBySpace,last,twist,flattenMapKeys} from './helper-functions';
-import {parseArgvs,Input as ParsingInput,Result} from './parsing';
+const includes = <T>(x:T) => (arr:T[]) => arr.includes(x);
+const isIn = <T>(arr:T[]) => (x:T) => arr.includes(x);
+const flatten = <T>(arr:(T[]|T)[]):T[] => [].concat(...arr);
 
 
-/*--- for parsing the input of the program definer ---*/
-interface BasicArgument{
-	type:('required' | 'optional')
-	name:string
+export type Aliases = string[][];
+export type Commands = {[commandName:string]:Program};
+export type Options = string[];
+
+export interface OptionValues{
+	[option:string]:(string|boolean)[]
 }
-
-const requiredArgRegex = /^\<([a-z0-9-_]+)\>$/i;
-const optionalArgRegex = /^\[([a-z0-9-_]+)\]$/i;
-const isRawArgValid = (rawArg:string) => requiredArgRegex.test(rawArg) || optionalArgRegex.test(rawArg);
-const parseRawArg = (rawArg:string):BasicArgument => {
-	const requiredArgMatch = rawArg.match(requiredArgRegex);
-	const optionalArgMatch = rawArg.match(optionalArgRegex);
-	if(requiredArgMatch) return{ type: 'required', name: requiredArgMatch[1] };
-	if(optionalArgMatch) return{ type: 'optional', name: optionalArgMatch[1] };
-	throw new Error('Invalid argument: '+rawArg);	
-};
-const parseArgSyntax = (argSyntax:string):BasicArgument[] => splitBySpace(argSyntax).map(parseRawArg);
-
-
-interface BasicOption{
-	appearances:string[],
-	argument:ParsingInput.Argument|null
-}
-
-const optionRegex = /^(?:(?:-([a-z0-9_]))|(?:--([a-z0-9-_]+)))$/i;
-const parseOptionSyntax = (optionSyntax:string):BasicOption => {
-	const rawAppearances = optionSyntax.trim().split(/[,\s]+/g);
-	const lastRawAppearance = last(rawAppearances);
-	const [argument,appearances] =
-		isRawArgValid(lastRawAppearance)
-		? [parseRawArg(lastRawAppearance),rawAppearances.slice(0,-1)]
-		: [null,rawAppearances];
-
-	appearances.forEach(appearance => {
-		if(!optionRegex.test(appearance)){
-			throw new Error('Invalid option: '+appearance);
+const optionValuesProxy = {
+	get(target:OptionValues, name:string):(string|boolean)[]{
+		if(!(name in target)){
+			target[name] = [];
 		}
-	});
-
-	return{argument,appearances};
+		return target[name];
+	}
 };
 
-
-/*--- define the API */
-export interface OptionOptions{
-	inheritance?:boolean
+export interface ParsedArgvs{
+	args:string[],
+	options:OptionValues,
+	program:Program
 }
 
-export interface OptionOptionsWithDesc extends OptionOptions{
-	description?:boolean
-}
 
 export class Program{
-	config = new ParsingInput.ProgramConfig();
-	description(description:string):this{
-		this.config.description = description;
-		return this;
-	}
-	arguments(syntax:string):this{
-		const _arguments = parseArgSyntax(syntax);
-		this.config.args = _arguments;
-		return this;
-	}
-	option(appearances:string,description:string,options?:OptionOptions):this
-	option(appearances:string,options?:OptionOptionsWithDesc):this
-	option(option:ParsingInput.Option):this
-	option(
-		appearancesOrOption:string|ParsingInput.Option,
-		descriptionOrOptions:string|OptionOptionsWithDesc = '',
-		options:OptionOptions = {}
-	):this{
-		if(typeof descriptionOrOptions === 'string'){
-			Object.assign(options,{
-				description: descriptionOrOptions
-			});
-		}else{
-			options = descriptionOrOptions;
+	aliases:Aliases
+	commands:Commands
+	optionsWithRequiredArg:Options
+	parse(argvs:string[]):ParsedArgvs{
+
+		if(typeof this.commands[argvs[0]] !== 'undefined'){
+			return this.commands[argvs[0]].parse(argvs.slice(1));
 		}
-		const option = Object.assign(
-			typeof appearancesOrOption === 'string'
-				? parseOptionSyntax(appearancesOrOption)
-				: appearancesOrOption
-			,{
-				inheritance: false,
-				description: ''
+		const allOptionsWithRequiredArgs = flatten(this.optionsWithRequiredArg.map(
+			option => this.aliases.find(includes(option)) || option
+		));
+
+		const args:string[] = [];
+		const options:OptionValues = new Proxy({}, optionValuesProxy);
+
+		while(argvs.length){
+			const argv = argvs.shift();
+			const optionMatch = argv.match(/^(--?)(.+?)(?:=(.*))?$/);
+			if(!optionMatch){
+				args.push(argv);
+				continue;
 			}
-			,options
-		);
-		
-		const alreadyExistingAppearances = flattenMapKeys(twist(this.config.options,'appearances'));
-		const alreadyExistingAppearance = option.appearances.find(appearance => {
-			return alreadyExistingAppearances.has(appearance);
-		});
 
-		if(alreadyExistingAppearance){
-			throw new Error('Option appearance already exists: '+alreadyExistingAppearance);
+			const dashes = optionMatch[1].length;
+
+			const option = optionMatch[2];
+			const opts = dashes===1 ? option.split('') : [option];
+			const optsAliases = flatten(opts.map(
+				opt => this.aliases.find(includes(opt)) || opt
+			));
+
+			const optValue = optionMatch[3] ||
+				(allOptionsWithRequiredArgs.some(isIn(optsAliases))
+				? argvs.shift()
+				: true);
+				
+			for(const optAlias of optsAliases){
+				options[optAlias].push(optValue);
+			}
 		}
-		this.config.options.push(option);
-		return this;
-	}
-	command(cmd:string,program:Program):this
-	command(cmd:string,programConfig:ParsingInput.ProgramConfig):this
-	command(cmd:string,programOrProgramConfig:Program|ParsingInput.ProgramConfig):this{
-		const programConfig =
-			programOrProgramConfig instanceof Program
-			? programOrProgramConfig.config
-			: programOrProgramConfig
 
-		this.config.commands.set(cmd,programConfig);
-		return this;
+		return{ args, options, program: this };
 	}
-	parse(argvs:string[]){
-		return parseArgvs(argvs,this.config);
-	}
-	constructor(syntax:string = ''){
-		this.config.program = this;
-		this.arguments(syntax);
+
+	constructor(aliases?:Aliases, optionsWithRequiredArg?:Options, commands?:Commands);
+	constructor(aliases?:Aliases, commands?:Commands, optionsWithRequiredArg?:Options);
+	constructor(optionsWithRequiredArg?:Options, aliases?:Aliases, commands?:Commands);
+	constructor(optionsWithRequiredArg?:Options, commands?:Commands, aliases?:Aliases);
+	constructor(commands?:Commands, aliases?:Aliases, optionsWithRequiredArg?:Options);
+	constructor(commands?:Commands, optionsWithRequiredArg?:Options, aliases?:Aliases);
+	constructor(x:any,y:any,z:any){
+		this.aliases =
+			Array.isArray(x) && Array.isArray(x[0]) ? x :
+			Array.isArray(y) && Array.isArray(y[0]) ? y :
+			Array.isArray(z) && Array.isArray(z[0]) ? z :
+			[];
+
+		this.commands =
+			typeof x === 'object' && !Array.isArray(x) ? x :
+			typeof y === 'object' && !Array.isArray(y) ? y :
+			typeof z === 'object' && !Array.isArray(z) ? z :
+			{};
+
+		this.optionsWithRequiredArg = 
+			Array.isArray(x) && typeof x[0] === 'string' ? x :
+			Array.isArray(y) && typeof y[0] === 'string' ? y :
+			Array.isArray(z) && typeof z[0] === 'string' ? z :
+			[];
 	}
 }
-export const createProgram = (syntax?:string):Program => {
-	return new Program(syntax);
-};

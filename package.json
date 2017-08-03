@@ -1,6 +1,6 @@
 {
   "name": "commandy",
-  "version": "2.0.1",
+  "version": "3.0.0",
   "description": "The programmatic solution for command-line interfaces, inspired by commander.js",
   "main": "dest/index.js",
   "typings": "dest/index.d.ts",
@@ -8,14 +8,14 @@
   "author": "Halasi Tamás <trusted.tomato@gmail.com>",
   "license": "MIT",
   "scripts": {
-    "test": "tsc && mocha",
+    "test": "tsc && jest",
     "watch": "tsc -w",
     "watch-examples": "tsc -p examples/tsconfig.json -w",
     "preversion": "tsc && npm test",
-    "version": "git add .",
     "postversion": "git push && git push --tags && npm publish"
   },
   "devDependencies": {
+    "jest": "^20.0.4",
     "mocha": "^3.2.0",
     "typescript": "^2.3.4"
   },

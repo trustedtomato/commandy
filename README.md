@@ -5,7 +5,7 @@
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)
 [![npm Downloads](https://img.shields.io/npm/dm/commandy.svg)](https://www.npmjs.com/package/commandy)
 
-The scalable & robust solution for command-line interfaces
+If you want to create a command line app which is hard to make with minimist, but don't want the syntactic sugar overdose which commander.js gives. A scalable & robust solution.
 
 ## Installation
 ```npm install commandy --save```
