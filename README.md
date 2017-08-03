@@ -43,3 +43,12 @@ console.log(order.options.pepperoni);
 
 ## Installation
 ```npm install commandy --save```
+
+## API Reference
+The type annotation used in the reference is based on TypeScript.
+
+```new Program(aliases?:string[][], optionsWithRequiredValue?:string[], commands:[commandName:string]:Program)```
+
+Note: The order of the parameters is interchangeable.
+
+```aliases:string[][]```: An array of arrays where...
