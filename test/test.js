@@ -23,6 +23,10 @@ const abc = new Program([
 	['c', 'cat']
 ],['a']);
 
+const abcer = new Program({
+	abc: abc
+});
+
 test('aliases', () => {
 	const help = basicProgram.parse(['-h']);
 	const version = basicProgram.parse(['--version']);
@@ -56,4 +60,17 @@ test('grouped options\' values', () => {
 	expect(abch.options.blobfish).toEqual(['green','bleaou!',true,'aww!']);
 	expect(abch.options.cat).toEqual(['bleaou!',true]);
 	expect(abch.args).toEqual(['cute']);
+});
+
+test('multiple same options', () => {
+	const abch = abc.parse(['-ccb','-caa=omg']);
+	expect(abch.options.aligator).toEqual(['omg','omg']);
+	expect(abch.options.a).toEqual(['omg','omg']);
+	expect(abch.options.b).toEqual([true]);
+	expect(abch.options.cat).toEqual([true,true,'omg']);
+});
+
+test('commands', () => {
+	const abcerh = abcer.parse(['abc','-a','green']);
+	expect(abcerh.program).toBe(abc);
 });
