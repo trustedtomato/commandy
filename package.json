@@ -1,6 +1,6 @@
 {
   "name": "commandy",
-  "version": "2.0.1",
+  "version": "3.0.0",
   "description": "The programmatic solution for command-line interfaces, inspired by commander.js",
   "main": "dest/index.js",
   "typings": "dest/index.d.ts",
