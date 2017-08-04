@@ -14,23 +14,23 @@ const {Program} = require('../');
 const checkoutProgram = new Program();
 
 const orderProgram = new Program([
-	['p', 'pepperoni'],
-	['c', 'cheese'],
-	['h', 'ham']
-])
+    ['p', 'pepperoni'],
+    ['c', 'cheese'],
+    ['h', 'ham']
+]);
 
 const pizzaProgram = new Program({
-	checkout: checkoutProgram,
-	order: orderProgram
+    checkout: checkoutProgram,
+    order: orderProgram
 });
 
 const margaretaCheckout = pizzaProgram.parse(['checkout','margareta']);
 console.log(margaretaCheckout.program === checkoutProgram);
 // => true
-console.log(margaretaCheckout.args)
+console.log(margaretaCheckout.args);
 // => [ 'margareta' ]
 
-const order = pizzaProgram.parse(['order','-ch','hawaii','-c','--pepperoni=little'])
+const order = pizzaProgram.parse(['order','-ch','hawaii','-c','--pepperoni=little']);
 console.log(order.args);
 // => [ 'hawaii' ]
 console.log(order.options.cheese);
@@ -43,3 +43,13 @@ console.log(order.options.pepperoni);
 
 ## Installation
 ```npm install commandy --save```
+
+## API Reference
+The type annotation used in the reference is based on TypeScript.
+
+```new Program(aliases?:string[][], optionsWithRequiredValue?:string[], commands?:[commandName:string]:Program)```
+
+Note: The order of the parameters is interchangeable.
+
+## Option value parsing
+...
